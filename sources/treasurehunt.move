@@ -21,6 +21,12 @@ module clicker::treasurehunt {
     const EGAME_PERMISSION_DENIED: u64 = 0;
     /// The game is active now
     const EGAME_IS_ACTIVE_NOW: u64 = 1;
+    /// The game is inactive now
+    const EGAME_IS_INACTIVE_NOW: u64 = 2;
+    /// The game is not ending time
+    const EGAME_NOT_ENDING_TIME: u64 = 3;
+    /// The game can not pause or resume
+    const EGAME_CAN_NOT_PAUSE_OR_RESUME: u64 = 4;
 
     
     struct GridSize has drop, store, copy {
@@ -100,5 +106,43 @@ module clicker::treasurehunt {
         game_state.users_state = vector::empty();
     }
 
+    public entry fun end_event( creator: &signer ) acquires GameState {
+        let creator_addr = signer::address_of(creator);
+        assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
 
+        let game_state = borrow_global_mut<GameState>(creator_addr);
+        let current_time = timestamp::now_seconds();
+
+        assert!(game_state.end_time <= current_time, error::unavailable(EGAME_NOT_ENDING_TIME));
+        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
+
+        game_state.status = EGAME_INACTIVE;
+    }
+
+    public entry fun pause_and_resume ( creator: &signer ) acquires GameState {
+        let creator_addr = signer::address_of(creator);
+        assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
+
+        let game_state = borrow_global_mut<GameState>(creator_addr);
+        assert!(game_state.status == EGAME_ACTIVE || game_state.status == EGAME_PAUSED, error::unavailable(EGAME_CAN_NOT_PAUSE_OR_RESUME));
+
+        if (game_state.status == EGAME_ACTIVE) {
+            game_state.status = EGAME_PAUSED;
+        }
+        else if (game_state.status == EGAME_PAUSED) {
+            game_state.status = EGAME_ACTIVE;
+        }
+    }
+    
+    public entry fun reward_distribution ( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) /* acquires GameState */ {}
+
+    #[view]
+    public fun show_leaderboard () acquires GameState {
+
+    }
+
+    #[view]
+    public fun show_player_score ( player: address ) acquires GameState{
+
+    }
 }
