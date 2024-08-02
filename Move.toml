@@ -7,7 +7,7 @@ authors = []
 std = "0x1"
 aptos_std = "0x1"
 aptos_framework = "0x1"
-clicker="0xf7a613261fe7906a34cb84318658293c9cb6fe39825a712b0fdbb96743692c69"
+clicker="0x024752c782de672f5bf9640f66d3160a5fdc83df38f6afa2f8f1235dced8103a"
 
 [dev-addresses]
 

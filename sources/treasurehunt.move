@@ -18,7 +18,7 @@ module clicker::treasurehunt {
     const EGAME_PAUSED: u8 = 2;
 
     /// The user is not allowed to do this operation
-    const EGAME_PERMISSION_DENIED: u64 = 1;
+    const EGAME_PERMISSION_DENIED: u64 = 0;
     /// The game is active now
     const EGAME_IS_ACTIVE_NOW: u64 = 1;
 
@@ -99,4 +99,6 @@ module clicker::treasurehunt {
         game_state.users_list = vector::empty();
         game_state.users_state = vector::empty();
     }
+
+
 }
