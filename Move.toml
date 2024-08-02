@@ -4,6 +4,7 @@ version = "1.0.0"
 authors = []
 
 [addresses]
+clicker="0x78dda626402a433a67bfe22665172c152e74e131f91f6e049d2e9e5064b8140d"
 
 [dev-addresses]
 
