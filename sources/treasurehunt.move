@@ -17,7 +17,9 @@ module clicker::treasurehunt {
     const EGAME_ACTIVE: u8 = 1;
     const EGAME_PAUSED: u8 = 2;
 
-    /// The collection does not exist
+    /// The user is not allowed to do this operation
+    const EGAME_PERMISSION_DENIED: u64 = 1;
+    /// The game is active now
     const EGAME_IS_ACTIVE_NOW: u64 = 1;
 
     
@@ -53,6 +55,8 @@ module clicker::treasurehunt {
 
     public entry fun start_event( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) acquires GameState {
         let creator_addr = signer::address_of(creator);
+        assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
+
         let current_time = timestamp::now_seconds();
 
         let status: u8;
