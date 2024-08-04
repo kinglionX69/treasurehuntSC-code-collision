@@ -44,6 +44,7 @@ module clicker::treasurehunt {
 
     struct UserState has drop, store, copy {
         score: u64,
+        lifetime_scroe: u64,
         grid_state: vector<u64>,
         power: u64,
         progress_bar: u64,
@@ -61,8 +62,6 @@ module clicker::treasurehunt {
         start_time: u64,
         end_time: u64,
         grid_size: GridSize,
-        users: u64,
-        leaderboard: vector<UserScore>,
         users_list: vector<address>,
         users_state: vector<UserState>
     }
@@ -90,8 +89,6 @@ module clicker::treasurehunt {
                     width: 0,
                     height: 0,
                 },
-                users: 0,
-                leaderboard: vector::empty(),
                 users_list: vector::empty(),
                 users_state: vector::empty(),
             });
@@ -108,8 +105,6 @@ module clicker::treasurehunt {
             width: grid_width,
             height: grid_height
         };
-        game_state.users = 0;
-        game_state.leaderboard = vector::empty();
         game_state.users_list = vector::empty();
         game_state.users_state = vector::empty();
     }
@@ -216,22 +211,13 @@ module clicker::treasurehunt {
         assert!(!vector::contains(&game_state.users_list, &signer_addr), error::unavailable(ALREADY_REGISTERED_USER));
 
         vector::push_back(&mut game_state.users_list, signer_addr);
-        vector::push_back(&mut game_state.users_state, UserState{ score: 0, grid_state: vector::empty(), power: 0, progress_bar: 500, update_time: timestamp::now_seconds() });
+
+        let init_vector = vector::empty();
+        while ( vector::length(&init_vector) < 71 ) {
+            vector::push_back(&mut init_vector, 0);
+        };
+
+        vector::push_back(&mut game_state.users_state, UserState{ score: 0, lifetime_scroe: 0, grid_state: init_vector, power: 0, progress_bar: 500, update_time: timestamp::now_seconds() });
     }
-
-    
-    // public entry fun reward_distribution ( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) /* acquires GameState */ {
-
-    // }
-
-    // #[view]
-    // public fun show_leaderboard () acquires GameState {
-
-    // }
-
-    // #[view]
-    // public fun show_player_score ( player: address ) acquires GameState{
-
-    // }
 
 }
