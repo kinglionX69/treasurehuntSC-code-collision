@@ -62,6 +62,7 @@ module clicker::treasurehunt {
         start_time: u64,
         end_time: u64,
         grid_size: GridSize,
+        grid_state: vector<u64>,
         users_list: vector<address>,
         users_state: vector<UserState>
     }
@@ -73,6 +74,11 @@ module clicker::treasurehunt {
         let current_time = timestamp::now_seconds();
 
         let status: u8;
+        let init_vector = vector::empty();
+        while ( vector::length(&init_vector) < 71 ) {
+            vector::push_back(&mut init_vector, 0);
+        };
+
         if (start_time <= current_time) {
             status = EGAME_ACTIVE;
         }
@@ -89,6 +95,7 @@ module clicker::treasurehunt {
                     width: 0,
                     height: 0,
                 },
+                grid_state: init_vector,
                 users_list: vector::empty(),
                 users_state: vector::empty(),
             });
@@ -105,6 +112,7 @@ module clicker::treasurehunt {
             width: grid_width,
             height: grid_height
         };
+        game_state.grid_state = init_vector;
         game_state.users_list = vector::empty();
         game_state.users_state = vector::empty();
     }
