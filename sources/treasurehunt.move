@@ -29,6 +29,10 @@ module clicker::treasurehunt {
     const EGAME_CAN_NOT_PAUSE_OR_RESUME: u64 = 4;
     /// Gui balance is not enough
     const BALANCE_IS_NOT_ENOUGH: u64 = 5;
+    /// unregistered user
+    const UNREGISTERED_USER: u64 = 6;
+    /// already registered user.
+    const ALREADY_REGISTERED_USER: u64 = 7;
     /// It is not supported plan
     const NOT_SUPPOTED_PLAN: u64 = 8;
 
@@ -201,7 +205,19 @@ module clicker::treasurehunt {
         }
     }
 
+    /**
+        The User connect to the game using connect_game function.
+    */
+    public entry fun connect_game ( account: &signer ) acquires GameState {
+        let signer_addr = signer::address_of(account);
 
+        let game_state = borrow_global_mut<GameState>(@clicker);
+
+        assert!(!vector::contains(&game_state.users_list, &signer_addr), error::unavailable(ALREADY_REGISTERED_USER));
+
+        vector::push_back(&mut game_state.users_list, signer_addr);
+        vector::push_back(&mut game_state.users_state, UserState{ score: 0, grid_state: vector::empty(), power: 0, progress_bar: 500, update_time: timestamp::now_seconds() });
+    }
 
     
     // public entry fun reward_distribution ( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) /* acquires GameState */ {
