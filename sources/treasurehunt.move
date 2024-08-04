@@ -27,6 +27,10 @@ module clicker::treasurehunt {
     const EGAME_NOT_ENDING_TIME: u64 = 3;
     /// The game can not pause or resume
     const EGAME_CAN_NOT_PAUSE_OR_RESUME: u64 = 4;
+    /// Gui balance is not enough
+    const BALANCE_IS_NOT_ENOUGH: u64 = 5;
+    /// It is not supported plan
+    const NOT_SUPPOTED_PLAN: u64 = 8;
 
     
     struct GridSize has drop, store, copy {
@@ -133,16 +137,85 @@ module clicker::treasurehunt {
             game_state.status = EGAME_ACTIVE;
         }
     }
+
+    /**
+        purchase powerup
+        plan: 1(1.5 times), 2(3 times), 3(5 times)
+     */
+    // purchase powerup
+    public entry fun purchase_powerup ( account: &signer, plan: u8 ) acquires GameState {
+        let signer_addr = signer::address_of(account);
+
+        assert!( plan == 1 || plan == 2 || plan == 3, error::unavailable(NOT_SUPPOTED_PLAN));
+
+        if( plan == 1 ) {
+            let gui_balance = 250_001; /* add function. get balance */
+
+            assert!(gui_balance >= 250_000, error::unavailable(BALANCE_IS_NOT_ENOUGH));
+
+            let game_state = borrow_global_mut<GameState>(@clicker);
+
+            let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
+
+            assert!(found == true, error::unavailable(UNREGISTERED_USER));
+
+            /* add function. transfer token  */
+
+            let user_state = vector::borrow_mut(&mut game_state.users_state, index);
+
+            user_state.power = 1;
+        }
+        else if( plan == 2 ) {
+            let gui_balance = 500_001; /* get balance */
+
+            assert!(gui_balance >= 500_000, error::unavailable(BALANCE_IS_NOT_ENOUGH));
+
+            let game_state = borrow_global_mut<GameState>(@clicker);
+
+            let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
+
+            assert!(found == true, error::unavailable(UNREGISTERED_USER));
+
+            /* add function. transfer token  */
+
+            let user_state = vector::borrow_mut(&mut game_state.users_state, index);
+
+            user_state.power = 2;
+        }
+        else if ( plan == 3 ) {
+            let gui_balance = 650_001; /* get balance */
+
+            assert!(gui_balance >= 650_000, error::unavailable(BALANCE_IS_NOT_ENOUGH));
+
+            let game_state = borrow_global_mut<GameState>(@clicker);
+
+            let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
+
+            assert!(found == true, error::unavailable(UNREGISTERED_USER));
+
+            /* add function. transfer token  */
+
+            let user_state = vector::borrow_mut(&mut game_state.users_state, index);
+
+            user_state.power = 3;
+        }
+    }
+
+
+
     
-    public entry fun reward_distribution ( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) /* acquires GameState */ {}
+    // public entry fun reward_distribution ( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) /* acquires GameState */ {
 
-    #[view]
-    public fun show_leaderboard () acquires GameState {
+    // }
 
-    }
+    // #[view]
+    // public fun show_leaderboard () acquires GameState {
 
-    #[view]
-    public fun show_player_score ( player: address ) acquires GameState{
+    // }
 
-    }
+    // #[view]
+    // public fun show_player_score ( player: address ) acquires GameState{
+
+    // }
+
 }
