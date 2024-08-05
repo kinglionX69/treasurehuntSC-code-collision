@@ -31,12 +31,23 @@ module clicker::treasurehunt {
     const BALANCE_IS_NOT_ENOUGH: u64 = 5;
     /// unregistered user
     const UNREGISTERED_USER: u64 = 6;
-    /// already registered user.
+    /// already registered user
     const ALREADY_REGISTERED_USER: u64 = 7;
     /// It is not supported plan
     const NOT_SUPPOTED_PLAN: u64 = 8;
+    /// The square already all digged
+    const EXCEED_DIGGING: u64 = 9;
+    /// The user is trying it at high speed
+    const TOO_HIGH_DIGGING_SPEED: u64 = 10;
+    /// The user has not enough progress
+    const NOT_ENOUGH_PROGRESS: u64 = 11;
+    /// The user is trying it with incorrect square index
+    const INCORRECT_SQUARE_INDEX: u64 = 12;
+    /// The user is trying to make a fast request
+    const TOO_FAST_REQUEST: u64 = 13;
+    /// The user is trying a progress_bar that is not allowed
+    const UNKNOWN_PROGRESS_BAR: u64 = 14;
 
-    
     struct GridSize has drop, store, copy {
         width: u8,
         height: u8
@@ -216,6 +227,7 @@ module clicker::treasurehunt {
 
         let game_state = borrow_global_mut<GameState>(@clicker);
 
+        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
         assert!(!vector::contains(&game_state.users_list, &signer_addr), error::unavailable(ALREADY_REGISTERED_USER));
 
         vector::push_back(&mut game_state.users_list, signer_addr);
@@ -225,7 +237,47 @@ module clicker::treasurehunt {
             vector::push_back(&mut init_vector, 0);
         };
 
-        vector::push_back(&mut game_state.users_state, UserState{ score: 0, lifetime_scroe: 0, grid_state: init_vector, power: 0, progress_bar: 500, update_time: timestamp::now_seconds() });
+        vector::push_back(&mut game_state.users_state, UserState{ score: 0, lifetime_scroe: 0, grid_state: init_vector, power: 0, progress_bar: 500, update_time: timestamp::now_microseconds() });
     }
+
+    public entry fun charge_progress_bar( account: &signer ) acquires GameState {
+        let signer_addr = signer::address_of(account);
+
+        let game_state = borrow_global_mut<GameState>(@clicker);
+
+        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
+        assert!(vector::contains(&game_state.users_list, &signer_addr), error::unavailable(UNREGISTERED_USER));
+
+        let ( _, index ) = vector::index_of(&game_state.users_list, &signer_addr);
+
+        let user_state = vector::borrow_mut(&mut game_state.users_state, index);
+
+        let now_microseconds = timestamp::now_microseconds();
+
+        assert!( ( user_state.progress_bar >= 0 && user_state.progress_bar <= 495 ), error::unavailable( UNKNOWN_PROGRESS_BAR ) );
+        assert!( ( user_state.progress_bar == 0 && ( now_microseconds - user_state.update_time ) > 5_000_000 )
+        || ( user_state.progress_bar != 0 && ( now_microseconds - user_state.update_time ) > 1_000_000 ), error::unavailable( TOO_FAST_REQUEST ) );
+
+        user_state.progress_bar = user_state.progress_bar + 5;
+    }
+
+    // #[view]
+    // public fun show_leaderboard () acquires GameState {
+    //     let game_state = borrow_global_mut<GameState>(@clicker);
+
+    //     assert!()
+    // }
+
+
+    
+    // public entry fun reward_distribution ( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) /* acquires GameState */ {
+
+    // }
+
+
+    // #[view]
+    // public fun show_player_score ( player: address ) acquires GameState{
+
+    // }
 
 }
