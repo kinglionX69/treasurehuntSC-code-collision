@@ -9,13 +9,20 @@ module clicker::treasurehunt {
     use aptos_framework::event;
     use aptos_framework::timestamp;
     use aptos_framework::account;
+    use aptos_framework::coin;
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_std::table::{Self, Table};
+    use aptos_token_objects::collection;
+    use aptos_token_objects::property_map;
+    use aptos_token_objects::token;
+    use aptos_token_objects::token::Token;
     
     /// Game Status
     const EGAME_INACTIVE: u8 = 0;
     const EGAME_ACTIVE: u8 = 1;
     const EGAME_PAUSED: u8 = 2;
+    /// Digging
+    const DIG_APTOS_AMOUNT: u64 = 10000; // 0.0001 apt
 
     /// The user is not allowed to do this operation
     const EGAME_PERMISSION_DENIED: u64 = 0;
@@ -75,7 +82,8 @@ module clicker::treasurehunt {
         grid_size: GridSize,
         grid_state: vector<u64>,
         users_list: vector<address>,
-        users_state: vector<UserState>
+        users_state: vector<UserState>,
+        holes: u64,
     }
 
     public entry fun start_event( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) acquires GameState {
@@ -109,6 +117,7 @@ module clicker::treasurehunt {
                 grid_state: init_vector,
                 users_list: vector::empty(),
                 users_state: vector::empty(),
+                holes: 0
             });
         };
 
@@ -126,6 +135,7 @@ module clicker::treasurehunt {
         game_state.grid_state = init_vector;
         game_state.users_list = vector::empty();
         game_state.users_state = vector::empty();
+        game_state.holes = 0;
     }
 
     public entry fun end_event( creator: &signer ) acquires GameState {
@@ -239,6 +249,72 @@ module clicker::treasurehunt {
 
         vector::push_back(&mut game_state.users_state, UserState{ score: 0, lifetime_scroe: 0, grid_state: init_vector, power: 0, progress_bar: 500, update_time: timestamp::now_microseconds() });
     }
+    /**
+        Digging method
+        plan 0: maximum digging speed 5/s 
+        plan 1: maximum digging speed 7.5/s
+        plan 2: maximum digging speed 15/s
+        plan 3: maximum digging speed 25/s
+    */
+    public entry fun dig( account: &signer, square_index: u64) acquires GameState {
+        let signer_addr = signer::address_of(account);
+
+        let game_state = borrow_global_mut<GameState>(@clicker);
+
+        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
+        assert!(vector::contains(&game_state.users_list, &signer_addr), error::unavailable(UNREGISTERED_USER));
+        assert!( ( square_index >=0 && square_index <= 71 ), error::invalid_argument(INCORRECT_SQUARE_INDEX) );
+
+        let now_microseconds = timestamp::now_microseconds();
+        let ( _, index ) = vector::index_of(&game_state.users_list, &signer_addr);
+
+        let user_state = vector::borrow_mut(&mut game_state.users_state, index);
+
+        assert!( user_state.progress_bar != 0, error::unavailable(NOT_ENOUGH_PROGRESS) );
+
+        assert!( ( user_state.power == 0 && ( now_microseconds - user_state.update_time ) > 190_000  )
+        || ( user_state.power == 1 && ( now_microseconds - user_state.update_time ) > 130_000 )
+        || ( user_state.power == 2 && ( now_microseconds - user_state.update_time ) > 60_000 ) 
+        || ( user_state.power == 3 && ( now_microseconds - user_state.update_time ) >  35_000 ),
+        error::unavailable(TOO_HIGH_DIGGING_SPEED) );
+
+        assert!(*vector::borrow(&game_state.grid_state, square_index) < 100, error::invalid_argument(EXCEED_DIGGING));
+
+        coin::transfer<AptosCoin>(account, @clicker, DIG_APTOS_AMOUNT);
+
+        *vector::borrow_mut(&mut game_state.grid_state, square_index) = *vector::borrow_mut(&mut game_state.grid_state, square_index) + 1;
+
+        *vector::borrow_mut(&mut user_state.grid_state, square_index) = *vector::borrow_mut(&mut user_state.grid_state, square_index) + 1;
+        user_state.progress_bar = user_state.progress_bar - 1;
+        user_state.score = user_state.score + 1;
+        user_state.lifetime_scroe = user_state.lifetime_scroe + 1;
+        user_state.update_time = timestamp::now_microseconds();
+
+        // check holes count
+        if ( *vector::borrow( &game_state.grid_state, square_index ) == 100 ) {
+            game_state.holes = game_state.holes + 1;
+
+            let init_vector = vector::empty();
+            while ( vector::length(&init_vector) < 71 ) {
+                vector::push_back(&mut init_vector, 0);
+            };
+            
+            if ( game_state.holes == 72 ) {
+                game_state.grid_state = init_vector;
+                game_state.holes = 0;
+
+                let i = 0;
+                let len = vector::length(&game_state.users_state);
+
+                while ( i < len ) {
+                    let user_state = vector::borrow_mut(&mut game_state.users_state, i);
+                    
+                    user_state.grid_state = init_vector;
+                    user_state.progress_bar = 500;
+                }
+            }
+        }
+    }
 
     public entry fun charge_progress_bar( account: &signer ) acquires GameState {
         let signer_addr = signer::address_of(account);
@@ -265,8 +341,7 @@ module clicker::treasurehunt {
     // public fun show_leaderboard () acquires GameState {
     //     let game_state = borrow_global_mut<GameState>(@clicker);
 
-    //     assert!()
-    // }
+        // }
 
 
     
