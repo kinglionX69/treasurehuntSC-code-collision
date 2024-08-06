@@ -74,6 +74,15 @@ module clicker::treasurehunt {
         score: u64,
     }
 
+    struct LeaderBoard has drop, store, copy {
+        top_address: address,
+        top_score: u64,
+        second_address: address,
+        second_score: u64,
+        third_address: address,
+        third_score: u64
+    }
+
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct GameState has key{
         status: u8,
@@ -83,6 +92,7 @@ module clicker::treasurehunt {
         grid_state: vector<u64>,
         users_list: vector<address>,
         users_state: vector<UserState>,
+        leaderboard: LeaderBoard,
         holes: u64,
     }
 
@@ -117,6 +127,14 @@ module clicker::treasurehunt {
                 grid_state: init_vector,
                 users_list: vector::empty(),
                 users_state: vector::empty(),
+                leaderboard: LeaderBoard {
+                    top_address: @0x1,
+                    top_score: 0,
+                    second_address: @0x1,
+                    second_score: 0,
+                    third_address: @0x1,
+                    third_score: 0
+                },
                 holes: 0
             });
         };
@@ -135,6 +153,14 @@ module clicker::treasurehunt {
         game_state.grid_state = init_vector;
         game_state.users_list = vector::empty();
         game_state.users_state = vector::empty();
+        game_state.leaderboard = LeaderBoard {
+            top_address: @0x1,
+            top_score: 0,
+            second_address: @0x1,
+            second_score: 0,
+            third_address: @0x1,
+            third_score: 0
+        };
         game_state.holes = 0;
     }
 
@@ -290,6 +316,38 @@ module clicker::treasurehunt {
         user_state.lifetime_scroe = user_state.lifetime_scroe + 1;
         user_state.update_time = timestamp::now_microseconds();
 
+        if( game_state.leaderboard.top_score < user_state.score ) {
+            if( *(&game_state.leaderboard.top_address) == signer_addr ) {
+                game_state.leaderboard.top_score = *(&user_state.score);
+            }
+            else {
+                game_state.leaderboard.third_score = *(&game_state.leaderboard.second_score);
+                game_state.leaderboard.third_address = *(&game_state.leaderboard.second_address);
+
+                game_state.leaderboard.second_score = *(&game_state.leaderboard.top_score);
+                game_state.leaderboard.second_address = *(&game_state.leaderboard.top_address);
+
+                game_state.leaderboard.top_score = *(&user_state.score);
+                game_state.leaderboard.top_address = signer_addr;
+            };
+        }
+        else if ( game_state.leaderboard.second_score < user_state.score ) {
+            if ( *(&game_state.leaderboard.second_address) == signer_addr ) {
+                game_state.leaderboard.second_score = *(&user_state.score);
+            }
+            else {
+                game_state.leaderboard.third_score = *(&game_state.leaderboard.second_score);
+                game_state.leaderboard.third_address = *(&game_state.leaderboard.second_address);
+
+                game_state.leaderboard.second_score = *(&user_state.score);
+                game_state.leaderboard.second_address = signer_addr;
+            };
+        }
+        else if ( game_state.leaderboard.third_score < user_state.score ) {
+            game_state.leaderboard.third_score = *(&user_state.score);
+            game_state.leaderboard.third_address = signer_addr;
+        };
+
         // check holes count
         if ( *vector::borrow( &game_state.grid_state, square_index ) == 100 ) {
             game_state.holes = game_state.holes + 1;
@@ -337,21 +395,16 @@ module clicker::treasurehunt {
         user_state.progress_bar = user_state.progress_bar + 5;
     }
 
-    // #[view]
-    // public fun show_leaderboard () acquires GameState {
-    //     let game_state = borrow_global_mut<GameState>(@clicker);
+    #[view]
+    public fun show_leaderboard (): LeaderBoard acquires GameState {
+        let game_state = borrow_global<GameState>(@clicker);
 
-        // }
+        game_state.leaderboard
+    }
 
 
     
     // public entry fun reward_distribution ( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) /* acquires GameState */ {
-
-    // }
-
-
-    // #[view]
-    // public fun show_player_score ( player: address ) acquires GameState{
 
     // }
 
