@@ -16,6 +16,7 @@ module clicker::treasurehunt {
     use aptos_token_objects::property_map;
     use aptos_token_objects::token;
     use aptos_token_objects::token::Token;
+    use aptos_framework::account::SignerCapability;
     
     /// Game Status
     const EGAME_INACTIVE: u8 = 0;
@@ -54,6 +55,8 @@ module clicker::treasurehunt {
     const TOO_FAST_REQUEST: u64 = 13;
     /// The user is trying a progress_bar that is not allowed
     const UNKNOWN_PROGRESS_BAR: u64 = 14;
+    /// Now is not distribution time.
+    const NOT_DISTRIBUTION_TIME: u64 = 15;
 
     struct GridSize has drop, store, copy {
         width: u8,
@@ -64,9 +67,10 @@ module clicker::treasurehunt {
         score: u64,
         lifetime_scroe: u64,
         grid_state: vector<u64>,
-        power: u64,
+        powerup: u64,
+        powerup_purchase_time: u64, // with second
         progress_bar: u64,
-        update_time: u64,
+        update_time: u64, // with microsecond
     }
 
     struct UserScore has drop, store, copy {
@@ -86,14 +90,30 @@ module clicker::treasurehunt {
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct GameState has key{
         status: u8,
-        start_time: u64,
-        end_time: u64,
+        start_time: u64, // with second
+        end_time: u64, // with second
         grid_size: GridSize,
         grid_state: vector<u64>,
         users_list: vector<address>,
         users_state: vector<UserState>,
         leaderboard: LeaderBoard,
         holes: u64,
+    }
+
+    struct ModuleData has key {
+        signer_cap: SignerCapability
+    }
+
+    fun init_module( deployer: &signer ) {
+        let creator_addr = signer::address_of( deployer );
+
+        if ( !exists<ModuleData>( creator_addr ) ) {
+            let ( resource_signer, resource_signer_cap ) = account::create_resource_account( deployer, x"4503317842200101300202");
+
+            move_to( deployer, ModuleData {
+                signer_cap: resource_signer_cap
+            } )
+        };
     }
 
     public entry fun start_event( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) acquires GameState {
@@ -217,7 +237,10 @@ module clicker::treasurehunt {
 
             let user_state = vector::borrow_mut(&mut game_state.users_state, index);
 
-            user_state.power = 1;
+            let now_seconds = timestamp::now_seconds();
+
+            user_state.powerup = 1;
+            user_state.powerup_purchase_time = now_seconds;
         }
         else if( plan == 2 ) {
             let gui_balance = 500_001; /* get balance */
@@ -234,7 +257,10 @@ module clicker::treasurehunt {
 
             let user_state = vector::borrow_mut(&mut game_state.users_state, index);
 
-            user_state.power = 2;
+            let now_seconds = timestamp::now_seconds();
+
+            user_state.powerup = 2;
+            user_state.powerup_purchase_time = now_seconds;
         }
         else if ( plan == 3 ) {
             let gui_balance = 650_001; /* get balance */
@@ -251,7 +277,10 @@ module clicker::treasurehunt {
 
             let user_state = vector::borrow_mut(&mut game_state.users_state, index);
 
-            user_state.power = 3;
+            let now_seconds = timestamp::now_seconds();
+
+            user_state.powerup = 3;
+            user_state.powerup_purchase_time = now_seconds;
         }
     }
 
@@ -273,36 +302,48 @@ module clicker::treasurehunt {
             vector::push_back(&mut init_vector, 0);
         };
 
-        vector::push_back(&mut game_state.users_state, UserState{ score: 0, lifetime_scroe: 0, grid_state: init_vector, power: 0, progress_bar: 500, update_time: timestamp::now_microseconds() });
+        vector::push_back(&mut game_state.users_state, UserState{ score: 0, lifetime_scroe: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  progress_bar: 500, update_time: timestamp::now_microseconds() });
     }
     /**
         Digging method
         plan 0: maximum digging speed 5/s 
-        plan 1: maximum digging speed 7.5/s
-        plan 2: maximum digging speed 15/s
-        plan 3: maximum digging speed 25/s
+        plan 1: maximum digging speed 7.5/s 15min
+        plan 2: maximum digging speed 15/s 30min
+        plan 3: maximum digging speed 25/s 60min
     */
     public entry fun dig( account: &signer, square_index: u64) acquires GameState {
-        let signer_addr = signer::address_of(account);
+        let signer_addr = signer::address_of(account); // get address of signer
 
-        let game_state = borrow_global_mut<GameState>(@clicker);
+        let game_state = borrow_global_mut<GameState>(@clicker); // get gamestate.
 
-        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
-        assert!(vector::contains(&game_state.users_list, &signer_addr), error::unavailable(UNREGISTERED_USER));
-        assert!( ( square_index >=0 && square_index <= 71 ), error::invalid_argument(INCORRECT_SQUARE_INDEX) );
+        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW)); // check game is active
+        assert!(vector::contains(&game_state.users_list, &signer_addr), error::unavailable(UNREGISTERED_USER)); // check user exist
+        assert!( ( square_index >=0 && square_index <= 71 ), error::invalid_argument(INCORRECT_SQUARE_INDEX) ); // check square index
 
-        let now_microseconds = timestamp::now_microseconds();
-        let ( _, index ) = vector::index_of(&game_state.users_list, &signer_addr);
+        let now_microseconds = timestamp::now_microseconds(); // get now time with microsecond
+        let ( _, index ) = vector::index_of(&game_state.users_list, &signer_addr); // get user index from user address
 
-        let user_state = vector::borrow_mut(&mut game_state.users_state, index);
+        let user_state = vector::borrow_mut(&mut game_state.users_state, index); // get userstate
 
-        assert!( user_state.progress_bar != 0, error::unavailable(NOT_ENOUGH_PROGRESS) );
+        assert!( user_state.progress_bar != 0, error::unavailable(NOT_ENOUGH_PROGRESS) ); // check progressbar enough
 
-        assert!( ( user_state.power == 0 && ( now_microseconds - user_state.update_time ) > 190_000  )
-        || ( user_state.power == 1 && ( now_microseconds - user_state.update_time ) > 130_000 )
-        || ( user_state.power == 2 && ( now_microseconds - user_state.update_time ) > 60_000 ) 
-        || ( user_state.power == 3 && ( now_microseconds - user_state.update_time ) >  35_000 ),
-        error::unavailable(TOO_HIGH_DIGGING_SPEED) );
+        let now_seconds = timestamp::now_seconds();
+
+        if ( user_state.powerup == 1 && ( now_seconds - user_state.powerup_purchase_time ) > 900 ) {
+            user_state.powerup = 0;
+        }
+        else if ( user_state.powerup == 2 && ( now_seconds - user_state.powerup_purchase_time ) > 1800 ) {
+            user_state.powerup = 0;
+        }
+        else if ( user_state.powerup == 3 && ( now_seconds - user_state.powerup_purchase_time ) > 3600 ) {
+            user_state.powerup = 0;
+        };
+
+        assert!( ( user_state.powerup == 0 && ( now_microseconds - user_state.update_time ) > 190_000  )
+        || ( user_state.powerup == 1 && ( now_microseconds - user_state.update_time ) > 130_000 )
+        || ( user_state.powerup == 2 && ( now_microseconds - user_state.update_time ) > 60_000 ) 
+        || ( user_state.powerup == 3 && ( now_microseconds - user_state.update_time ) >  35_000 ),
+        error::unavailable(TOO_HIGH_DIGGING_SPEED) ); // check diggingtime according to powerup plan
 
         assert!(*vector::borrow(&game_state.grid_state, square_index) < 100, error::invalid_argument(EXCEED_DIGGING));
 
@@ -369,6 +410,8 @@ module clicker::treasurehunt {
                     
                     user_state.grid_state = init_vector;
                     user_state.progress_bar = 500;
+
+                    i = i + 1;
                 }
             }
         }
@@ -400,12 +443,6 @@ module clicker::treasurehunt {
         let game_state = borrow_global<GameState>(@clicker);
 
         game_state.leaderboard
-    }
-
-
-    
-    // public entry fun reward_distribution ( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) /* acquires GameState */ {
-
-    // }
+    }    
 
 }
