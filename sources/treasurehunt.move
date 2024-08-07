@@ -11,6 +11,7 @@ module clicker::treasurehunt {
     use aptos_framework::account;
     use aptos_framework::coin;
     use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_framework::managed_coin;
     use aptos_std::table::{Self, Table};
     use aptos_token_objects::collection;
     use aptos_token_objects::property_map;
@@ -24,6 +25,7 @@ module clicker::treasurehunt {
     const EGAME_PAUSED: u8 = 2;
     /// Digging
     const DIG_APTOS_AMOUNT: u64 = 10000; // 0.0001 apt
+    const EX_GUI_TOKEN_DECIMAL: u64 = 1_000_000;
 
     /// The user is not allowed to do this operation
     const EGAME_PERMISSION_DENIED: u64 = 0;
@@ -64,7 +66,7 @@ module clicker::treasurehunt {
     }
 
     struct UserState has drop, store, copy {
-        score: u64,
+        dig: u64,
         lifetime_scroe: u64,
         grid_state: vector<u64>,
         powerup: u64,
@@ -73,18 +75,15 @@ module clicker::treasurehunt {
         update_time: u64, // with microsecond
     }
 
-    struct UserScore has drop, store, copy {
+    struct UserDig has drop, store, copy {
         user_address: address,
-        score: u64,
+        dig: u64,
     }
 
     struct LeaderBoard has drop, store, copy {
-        top_address: address,
-        top_score: u64,
-        second_address: address,
-        second_score: u64,
-        third_address: address,
-        third_score: u64
+        top_user: UserDig,
+        second_user: UserDig,
+        third_user: UserDig,
     }
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
@@ -148,12 +147,18 @@ module clicker::treasurehunt {
                 users_list: vector::empty(),
                 users_state: vector::empty(),
                 leaderboard: LeaderBoard {
-                    top_address: @0x1,
-                    top_score: 0,
-                    second_address: @0x1,
-                    second_score: 0,
-                    third_address: @0x1,
-                    third_score: 0
+                    top_user: UserDig {
+                        user_address: @0x1,
+                        dig: 0,
+                    },
+                    second_user: UserDig {
+                        user_address: @0x1,
+                        dig: 0,
+                    },
+                    third_user: UserDig {
+                        user_address: @0x1,
+                        dig: 0
+                    }
                 },
                 holes: 0
             });
@@ -174,12 +179,18 @@ module clicker::treasurehunt {
         game_state.users_list = vector::empty();
         game_state.users_state = vector::empty();
         game_state.leaderboard = LeaderBoard {
-            top_address: @0x1,
-            top_score: 0,
-            second_address: @0x1,
-            second_score: 0,
-            third_address: @0x1,
-            third_score: 0
+            top_user: UserDig {
+                user_address: @0x1,
+                dig: 0,
+            },
+            second_user: UserDig {
+                user_address: @0x1,
+                dig: 0,
+            },
+            third_user: UserDig {
+                user_address: @0x1,
+                dig: 0
+            }
         };
         game_state.holes = 0;
     }
@@ -295,6 +306,8 @@ module clicker::treasurehunt {
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
         assert!(!vector::contains(&game_state.users_list, &signer_addr), error::unavailable(ALREADY_REGISTERED_USER));
 
+        managed_coin::register<ExGuiToken::ex_gui_token::ExGuiToken> ( account ); // change with gui coin
+
         vector::push_back(&mut game_state.users_list, signer_addr);
 
         let init_vector = vector::empty();
@@ -302,7 +315,7 @@ module clicker::treasurehunt {
             vector::push_back(&mut init_vector, 0);
         };
 
-        vector::push_back(&mut game_state.users_state, UserState{ score: 0, lifetime_scroe: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  progress_bar: 500, update_time: timestamp::now_microseconds() });
+        vector::push_back(&mut game_state.users_state, UserState{ dig: 0, lifetime_scroe: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  progress_bar: 500, update_time: timestamp::now_microseconds() });
     }
     /**
         Digging method
@@ -353,40 +366,40 @@ module clicker::treasurehunt {
 
         *vector::borrow_mut(&mut user_state.grid_state, square_index) = *vector::borrow_mut(&mut user_state.grid_state, square_index) + 1;
         user_state.progress_bar = user_state.progress_bar - 1;
-        user_state.score = user_state.score + 1;
+        user_state.dig = user_state.dig + 1;
         user_state.lifetime_scroe = user_state.lifetime_scroe + 1;
         user_state.update_time = timestamp::now_microseconds();
 
-        if( game_state.leaderboard.top_score < user_state.score ) {
-            if( *(&game_state.leaderboard.top_address) == signer_addr ) {
-                game_state.leaderboard.top_score = *(&user_state.score);
+        if( game_state.leaderboard.top_user.dig < user_state.dig ) {
+            if( *( &game_state.leaderboard.top_user.user_address ) == signer_addr ) {
+                game_state.leaderboard.top_user.dig = *(&user_state.dig);
             }
             else {
-                game_state.leaderboard.third_score = *(&game_state.leaderboard.second_score);
-                game_state.leaderboard.third_address = *(&game_state.leaderboard.second_address);
+                game_state.leaderboard.third_user.dig = *(&game_state.leaderboard.second_user.dig);
+                game_state.leaderboard.third_user.user_address = *(&game_state.leaderboard.second_user.user_address);
 
-                game_state.leaderboard.second_score = *(&game_state.leaderboard.top_score);
-                game_state.leaderboard.second_address = *(&game_state.leaderboard.top_address);
+                game_state.leaderboard.second_user.dig = *(&game_state.leaderboard.top_user.dig);
+                game_state.leaderboard.second_user.user_address = *(&game_state.leaderboard.top_user.user_address);
 
-                game_state.leaderboard.top_score = *(&user_state.score);
-                game_state.leaderboard.top_address = signer_addr;
+                game_state.leaderboard.top_user.dig = *(&user_state.dig);
+                game_state.leaderboard.top_user.user_address = signer_addr;
             };
         }
-        else if ( game_state.leaderboard.second_score < user_state.score ) {
-            if ( *(&game_state.leaderboard.second_address) == signer_addr ) {
-                game_state.leaderboard.second_score = *(&user_state.score);
+        else if ( game_state.leaderboard.second_user.dig < user_state.dig ) {
+            if ( *(&game_state.leaderboard.second_user.user_address) == signer_addr ) {
+                game_state.leaderboard.second_user.dig = *(&user_state.dig);
             }
             else {
-                game_state.leaderboard.third_score = *(&game_state.leaderboard.second_score);
-                game_state.leaderboard.third_address = *(&game_state.leaderboard.second_address);
+                game_state.leaderboard.third_user.dig = *(&game_state.leaderboard.second_user.dig);
+                game_state.leaderboard.third_user.user_address = *(&game_state.leaderboard.second_user.user_address);
 
-                game_state.leaderboard.second_score = *(&user_state.score);
-                game_state.leaderboard.second_address = signer_addr;
+                game_state.leaderboard.second_user.dig = *(&user_state.dig);
+                game_state.leaderboard.second_user.user_address = signer_addr;
             };
         }
-        else if ( game_state.leaderboard.third_score < user_state.score ) {
-            game_state.leaderboard.third_score = *(&user_state.score);
-            game_state.leaderboard.third_address = signer_addr;
+        else if ( game_state.leaderboard.third_user.dig < user_state.dig ) {
+            game_state.leaderboard.third_user.dig = *(&user_state.dig);
+            game_state.leaderboard.third_user.user_address = signer_addr;
         };
 
         // check holes count
