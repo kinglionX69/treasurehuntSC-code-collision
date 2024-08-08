@@ -57,11 +57,6 @@ module clicker::treasurehunt {
     /// Now is not distribution time.
     const NOT_DISTRIBUTION_TIME: u64 = 15;
 
-    struct GridSize has drop, store, copy {
-        width: u8,
-        height: u8
-    }
-
     struct UserState has drop, store, copy {
         dig: u64,
         lifetime_scroe: u64,
@@ -88,7 +83,6 @@ module clicker::treasurehunt {
         status: u8,
         start_time: u64, // with second
         end_time: u64, // with second
-        grid_size: GridSize,
         grid_state: vector<u64>,
         users_list: vector<address>,
         users_state: vector<UserState>,
@@ -137,10 +131,6 @@ module clicker::treasurehunt {
                 status: 0,
                 start_time: 18_446_744_073_709_551_615,
                 end_time: 18_446_744_073_709_551_615, 
-                grid_size: GridSize {
-                    width: 0,
-                    height: 0,
-                },
                 grid_state: init_vector,
                 users_list: vector::empty(),
                 users_state: vector::empty(),
@@ -170,10 +160,6 @@ module clicker::treasurehunt {
         game_state.status = status;
         game_state.start_time = start_time;
         game_state.end_time = end_time;
-        game_state.grid_size = GridSize {
-            width: grid_width,
-            height: grid_height
-        };
         game_state.grid_state = init_vector;
         game_state.users_list = vector::empty();
         game_state.users_state = vector::empty();
