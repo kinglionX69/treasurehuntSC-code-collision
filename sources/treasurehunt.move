@@ -84,7 +84,7 @@ module clicker::treasurehunt {
     }
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct GameState has key{
+    struct GameState has copy, key{
         status: u8,
         start_time: u64, // with second
         end_time: u64, // with second
@@ -94,6 +94,7 @@ module clicker::treasurehunt {
         users_state: vector<UserState>,
         leaderboard: LeaderBoard,
         holes: u64,
+        total_pool: u256,
     }
 
     struct ModuleData has key {
@@ -157,7 +158,8 @@ module clicker::treasurehunt {
                         dig: 0
                     }
                 },
-                holes: 0
+                holes: 0,
+                total_pool: 0,
             });
         };
 
@@ -480,6 +482,13 @@ module clicker::treasurehunt {
         let game_state = borrow_global<GameState>(@clicker);
 
         game_state.leaderboard
-    }    
+    }
+
+    #[view]
+    public fun game_state (): GameState acquires GameState {
+        let game_state = borrow_global<GameState>(@clicker);
+
+        *game_state
+    }
 
 }
