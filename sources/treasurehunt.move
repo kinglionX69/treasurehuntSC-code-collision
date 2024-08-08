@@ -54,8 +54,10 @@ module clicker::treasurehunt {
     const TOO_FAST_REQUEST: u64 = 13;
     /// The user is trying a progress_bar that is not allowed
     const UNKNOWN_PROGRESS_BAR: u64 = 14;
-    /// Now is not distribution time.
+    /// Now is not distribution time
     const NOT_DISTRIBUTION_TIME: u64 = 15;
+    /// Time set error
+    const TIME_SET_ERROR: u64 = 16;
 
     struct UserState has drop, store, copy {
         dig: u64,
@@ -107,28 +109,22 @@ module clicker::treasurehunt {
         };
     }
 
-    public entry fun start_event( creator: &signer, start_time: u64, end_time: u64, grid_width: u8, grid_height: u8 ) acquires GameState {
+    public entry fun start_event( creator: &signer, start_time: u64 ) acquires GameState {
         let creator_addr = signer::address_of(creator);
         assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
 
         let current_time = timestamp::now_seconds();
 
-        let status: u8;
         let init_vector = vector::empty();
         while ( vector::length(&init_vector) < 71 ) {
             vector::push_back(&mut init_vector, 0);
         };
 
-        if (start_time <= current_time) {
-            status = EGAME_ACTIVE;
-        }
-        else {
-            status = EGAME_INACTIVE;
-        };
+        assert!( start_time >= current_time, error::unavailable(TIME_SET_ERROR) );
 
         if (!exists<GameState>(creator_addr)) {
             move_to(creator, GameState{
-                status: 0,
+                status: EGAME_INACTIVE,
                 start_time: 18_446_744_073_709_551_615,
                 end_time: 18_446_744_073_709_551_615, 
                 grid_state: init_vector,
@@ -155,11 +151,11 @@ module clicker::treasurehunt {
 
         let game_state = borrow_global_mut<GameState>(creator_addr);
 
-        assert!(game_state.status == 0, error::unavailable(EGAME_IS_ACTIVE_NOW));
+        assert!(game_state.status == EGAME_INACTIVE, error::unavailable(EGAME_IS_ACTIVE_NOW));
 
-        game_state.status = status;
+        game_state.status = EGAME_ACTIVE;
         game_state.start_time = start_time;
-        game_state.end_time = end_time;
+        game_state.end_time = 18_446_744_073_709_551_615;
         game_state.grid_state = init_vector;
         game_state.users_list = vector::empty();
         game_state.users_state = vector::empty();
@@ -180,14 +176,14 @@ module clicker::treasurehunt {
         game_state.holes = 0;
     }
 
-    public entry fun end_event( creator: &signer ) acquires GameState {
+    public entry fun end_event( creator: &signer, end_time: u64 ) acquires GameState {
         let creator_addr = signer::address_of(creator);
         assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
 
         let game_state = borrow_global_mut<GameState>(creator_addr);
         let current_time = timestamp::now_seconds();
 
-        assert!(game_state.end_time <= current_time, error::unavailable(EGAME_NOT_ENDING_TIME));
+        assert!(end_time > game_state.start_time, error::unavailable(TIME_SET_ERROR));
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
 
         game_state.status = EGAME_INACTIVE;
