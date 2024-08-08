@@ -228,9 +228,9 @@ module clicker::treasurehunt {
     public entry fun purchase_powerup ( account: &signer, plan: u8 ) acquires GameState {
         let signer_addr = signer::address_of(account);
 
+        let game_state = borrow_global_mut<GameState>(@clicker);
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW)); // game active check
 
-        let game_state = borrow_global_mut<GameState>(@clicker);
         let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
 
         assert!(found, error::unavailable(UNREGISTERED_USER)); // check user exist
