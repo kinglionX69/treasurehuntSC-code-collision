@@ -46,14 +46,14 @@ module clicker::treasurehunt {
     const EXCEED_DIGGING: u64 = 9;
     /// The user is trying it at high speed
     const TOO_HIGH_DIGGING_SPEED: u64 = 10;
-    /// The user has not enough progress
-    const NOT_ENOUGH_PROGRESS: u64 = 11;
+    /// The user has not enough energy
+    const NOT_ENOUGH_ENERGY: u64 = 11;
     /// The user is trying it with incorrect square index
     const INCORRECT_SQUARE_INDEX: u64 = 12;
     /// The user is trying to make a fast request
     const TOO_FAST_REQUEST: u64 = 13;
-    /// The user is trying a progress_bar that is not allowed
-    const UNKNOWN_PROGRESS_BAR: u64 = 14;
+    /// The user is trying a energy that is not allowed
+    const UNKNOWN_ENERGY: u64 = 14;
     /// Now is not distribution time
     const NOT_DISTRIBUTION_TIME: u64 = 15;
     /// Time set error
@@ -65,7 +65,7 @@ module clicker::treasurehunt {
         grid_state: vector<u64>,
         powerup: u64,
         powerup_purchase_time: u64, // with second
-        progress_bar: u64,
+        energy: u64,
         update_time: u64, // with microsecond
     }
 
@@ -272,7 +272,7 @@ module clicker::treasurehunt {
             vector::push_back(&mut init_vector, 0);
         };
 
-        vector::push_back(&mut game_state.users_state, UserState{ dig: 0, lifetime_scroe: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  progress_bar: 500, update_time: timestamp::now_microseconds() });
+        vector::push_back(&mut game_state.users_state, UserState{ dig: 0, lifetime_scroe: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  energy: 500, update_time: timestamp::now_microseconds() });
     }
     /**
         Digging method
@@ -295,7 +295,7 @@ module clicker::treasurehunt {
 
         let user_state = vector::borrow_mut(&mut game_state.users_state, index); // get userstate
 
-        assert!( user_state.progress_bar != 0, error::unavailable(NOT_ENOUGH_PROGRESS) ); // check progressbar enough
+        assert!( user_state.energy != 0, error::unavailable(NOT_ENOUGH_ENERGY) ); // check energy
 
         let now_seconds = timestamp::now_seconds();
 
@@ -322,7 +322,7 @@ module clicker::treasurehunt {
         *vector::borrow_mut(&mut game_state.grid_state, square_index) = *vector::borrow_mut(&mut game_state.grid_state, square_index) + 1;
 
         *vector::borrow_mut(&mut user_state.grid_state, square_index) = *vector::borrow_mut(&mut user_state.grid_state, square_index) + 1;
-        user_state.progress_bar = user_state.progress_bar - 1;
+        user_state.energy = user_state.energy - 1;
         user_state.dig = user_state.dig + 1;
         user_state.lifetime_scroe = user_state.lifetime_scroe + 1;
         user_state.update_time = timestamp::now_microseconds();
@@ -379,7 +379,7 @@ module clicker::treasurehunt {
                     let user_state = vector::borrow_mut(&mut game_state.users_state, i);
                     
                     user_state.grid_state = init_vector;
-                    user_state.progress_bar = 500;
+                    user_state.energy = 500;
 
                     i = i + 1;
                 }
@@ -387,7 +387,7 @@ module clicker::treasurehunt {
         }
     }
 
-    public entry fun charge_progress_bar( account: &signer ) acquires GameState {
+    public entry fun charge_energy( account: &signer ) acquires GameState {
         let signer_addr = signer::address_of(account);
 
         let game_state = borrow_global_mut<GameState>(@clicker);
@@ -401,11 +401,11 @@ module clicker::treasurehunt {
 
         let now_microseconds = timestamp::now_microseconds();
 
-        assert!( ( user_state.progress_bar >= 0 && user_state.progress_bar <= 495 ), error::unavailable( UNKNOWN_PROGRESS_BAR ) );
-        assert!( ( user_state.progress_bar == 0 && ( now_microseconds - user_state.update_time ) > 5_000_000 )
-        || ( user_state.progress_bar != 0 && ( now_microseconds - user_state.update_time ) > 1_000_000 ), error::unavailable( TOO_FAST_REQUEST ) );
+        assert!( ( user_state.energy >= 0 && user_state.energy <= 495 ), error::unavailable( UNKNOWN_ENERGY ) );
+        assert!( ( user_state.energy == 0 && ( now_microseconds - user_state.update_time ) > 5_000_000 )
+        || ( user_state.energy != 0 && ( now_microseconds - user_state.update_time ) > 1_000_000 ), error::unavailable( TOO_FAST_REQUEST ) );
 
-        user_state.progress_bar = user_state.progress_bar + 5;
+        user_state.energy = user_state.energy + 5;
     }
 
     public entry fun reward_distribution ( creator: &signer ) acquires GameState {
