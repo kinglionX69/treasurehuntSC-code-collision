@@ -7,25 +7,14 @@ authors = []
 std = "0x1"
 aptos_std = "0x1"
 aptos_framework = "0x1"
+aptos_token = "0x3"
 aptos_token_objects = "0x4"
 
-clicker="0x1392947f28f75e6b4b56f2d8df1b44ceb2acb319d75ff2df208adbe8ba953df1"
+clicker="0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c"
 
 admin="0xf1373239bc075ade90ffc988252f0cdd7075591403d00ddcf8ee60814e004382"
 
-ExGuiToken="0x1392947f28f75e6b4b56f2d8df1b44ceb2acb319d75ff2df208adbe8ba953df1"
-
-dest_addr1="0x2e9a164a50b91d5e447bc53fe4fa4adc1217616a8f50fe2fcb69a1691f59a860"
-dest_addr2="0x179e2925160486d5049bd86e90bf4a16d4b7cbbad6664093370ab12bac2ab698"
-dest_addr3="0x77fce768839f617e4c2e6c525cb106432f0a9638b7810ea64614da5e2d65bb37"
-dest_addr4="0x7393069c886e944549b671eedcc00e9f674ae3860109f5a006d46006ab769c65"
-dest_addr5="0xf847d71295c02574a51e1bc08dd8e6b823776b1bdf2dce3eb7d3f42aa4c67f48"
-dest_addr6="0x452bfabecb2b9b96e3b9aae69d83beeb3dd5a3d64d68cd77fc7f2ccc9dbda7fe"
-dest_addr7="0xacfe441ea156ca8c3c16b26417531665fe0c2b0bd65da07e1ef26df41ea445e6"
-dest_addr8="0x3092d9c50f5ce6c1019bff147195cca75216369deb44a30c9249d3f2607631bb"
-dest_addr9="0xa6cd55a2201c639991543996ece4d77b3d4611930dbfee3bc458a46fe5ea365e"
-dest_addr10="0xe72e4d10a33e28430e1942d815110eb517482c671b2108c796e0e6f324d42eae"
-dest_addr11="0x90449bac0454bfadaccb050118d7dd1f41b6d86abe52925744c46af06b40f056"
+ExGuiToken="0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c"
 
 [dev-addresses]
 
@@ -38,5 +27,10 @@ subdir = "aptos-move/framework/aptos-framework"
 git = "https://github.com/aptos-labs/aptos-core.git"
 rev = "mainnet"
 subdir = "aptos-move/framework/aptos-token-objects"
+
+[dependencies.AptosToken]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-token"
 
 [dev-dependencies]

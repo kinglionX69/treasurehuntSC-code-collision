@@ -13,11 +13,8 @@ module clicker::treasurehunt {
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::managed_coin;
     use aptos_std::table::{Self, Table};
-    use aptos_token_objects::collection;
-    use aptos_token_objects::property_map;
-    use aptos_token_objects::token;
-    use aptos_token_objects::token::Token;
     use aptos_framework::account::SignerCapability;
+    use aptos_token::token::{Self, Token, TokenId};
     
     /// Game Status
     const EGAME_INACTIVE: u8 = 0;
@@ -231,20 +228,16 @@ module clicker::treasurehunt {
     public entry fun purchase_powerup ( account: &signer, plan: u8 ) acquires GameState {
         let signer_addr = signer::address_of(account);
 
+        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW)); // game active check
+
+        let game_state = borrow_global_mut<GameState>(@clicker);
+        let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
+
+        assert!(found, error::unavailable(UNREGISTERED_USER)); // check user exist
         assert!( plan == 1 || plan == 2 || plan == 3, error::unavailable(NOT_SUPPOTED_PLAN));
 
         if( plan == 1 ) {
-            let gui_balance = 250_001; /* add function. get balance */
-
-            assert!(gui_balance >= 250_000, error::unavailable(BALANCE_IS_NOT_ENOUGH));
-
-            let game_state = borrow_global_mut<GameState>(@clicker);
-
-            let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
-
-            assert!(found == true, error::unavailable(UNREGISTERED_USER));
-
-            /* add function. transfer token  */
+            coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( account, @clicker, 250_000 * EX_GUI_TOKEN_DECIMAL );
 
             let user_state = vector::borrow_mut(&mut game_state.users_state, index);
 
@@ -254,17 +247,7 @@ module clicker::treasurehunt {
             user_state.powerup_purchase_time = now_seconds;
         }
         else if( plan == 2 ) {
-            let gui_balance = 500_001; /* get balance */
-
-            assert!(gui_balance >= 500_000, error::unavailable(BALANCE_IS_NOT_ENOUGH));
-
-            let game_state = borrow_global_mut<GameState>(@clicker);
-
-            let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
-
-            assert!(found == true, error::unavailable(UNREGISTERED_USER));
-
-            /* add function. transfer token  */
+            coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( account, @clicker, 500_000 * EX_GUI_TOKEN_DECIMAL );
 
             let user_state = vector::borrow_mut(&mut game_state.users_state, index);
 
@@ -274,17 +257,7 @@ module clicker::treasurehunt {
             user_state.powerup_purchase_time = now_seconds;
         }
         else if ( plan == 3 ) {
-            let gui_balance = 650_001; /* get balance */
-
-            assert!(gui_balance >= 650_000, error::unavailable(BALANCE_IS_NOT_ENOUGH));
-
-            let game_state = borrow_global_mut<GameState>(@clicker);
-
-            let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
-
-            assert!(found == true, error::unavailable(UNREGISTERED_USER));
-
-            /* add function. transfer token  */
+            coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( account, @clicker, 650_000 * EX_GUI_TOKEN_DECIMAL );
 
             let user_state = vector::borrow_mut(&mut game_state.users_state, index);
 
@@ -449,6 +422,57 @@ module clicker::treasurehunt {
         || ( user_state.progress_bar != 0 && ( now_microseconds - user_state.update_time ) > 1_000_000 ), error::unavailable( TOO_FAST_REQUEST ) );
 
         user_state.progress_bar = user_state.progress_bar + 5;
+    }
+
+    public entry fun reward_distribution ( creator: &signer ) acquires GameState {
+        let now_seconds: u64 = timestamp::now_seconds();
+
+        let game_state = borrow_global_mut<GameState>(@clicker);
+
+        // assert!( ( now_seconds - game_state.start_time ) > 86_400, error::permission_denied( NOT_DISTRIBUTION_TIME ) );
+
+        let daily_pool = coin::balance<ExGuiToken::ex_gui_token::ExGuiToken>(@clicker);
+
+        // send gui token to admin address
+        coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, @admin, daily_pool / 10 * EX_GUI_TOKEN_DECIMAL );
+        daily_pool = daily_pool - daily_pool / 10;
+
+        // send gui token to each user addres
+        let i: u64 = 0;
+        let len: u64 = vector::length(&game_state.users_state);
+        let total: u64 = 0;
+
+        // 2x
+        let collection_name_2x = string::utf8(b"Martian Testnet73459");
+        let token_name_2x = string::utf8(b"Martian NFT #73459");
+        // 3x
+        let collection_name_3x = string::utf8(b"Martian Testnet3x");
+        let token_name_3x = string::utf8(b"Martian NFT #3x");
+
+        let updated_users_dig = vector::empty();
+
+        while ( i < len ) {
+            let user_state = vector::borrow(&game_state.users_state, i);
+            let dig = user_state.dig;
+
+            if ( token::check_tokendata_exists ( *vector::borrow(&game_state.users_list, i), collection_name_3x, token_name_3x ) ) {
+                dig = user_state.dig * 3;
+            }
+            else if ( token::check_tokendata_exists ( *vector::borrow(&game_state.users_list, i), collection_name_2x, token_name_2x ) ) {
+                dig = user_state.dig * 2;
+            };
+
+            total = total + dig;
+            vector::push_back( &mut updated_users_dig, dig );
+
+            i = i + 1;
+        };
+
+        i = 0;
+        while ( i < len ) {
+            coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, *vector::borrow(&game_state.users_list, i), *vector::borrow(&updated_users_dig, i) * daily_pool / total * EX_GUI_TOKEN_DECIMAL );
+            i = i + 1;
+        };
     }
 
     #[view]

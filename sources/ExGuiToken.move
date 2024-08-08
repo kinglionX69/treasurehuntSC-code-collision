@@ -1,4 +1,3 @@
-//:!:>moon
 module ExGuiToken::ex_gui_token {
     struct ExGuiToken {}
 
@@ -12,4 +11,3 @@ module ExGuiToken::ex_gui_token {
         );
     }
 }
-//<:!:moon
