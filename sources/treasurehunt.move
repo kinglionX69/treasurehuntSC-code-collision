@@ -289,7 +289,6 @@ module clicker::treasurehunt {
         vector::push_back(&mut game_state.users_state, UserState{ dig: 0, earned_pool: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  energy: 500, update_time: timestamp::now_microseconds() });
     }
     /**
-        Digging method
         plan 0: maximum digging speed 5/s 
         plan 1: maximum digging speed 7.5/s 15min
         plan 2: maximum digging speed 15/s 30min
@@ -330,7 +329,7 @@ module clicker::treasurehunt {
         error::unavailable(TOO_HIGH_DIGGING_SPEED) ); // check diggingtime according to powerup plan
         assert!(*vector::borrow(&game_state.grid_state, square_index) < 100, error::invalid_argument(EXCEED_DIGGING));
 
-        coin::transfer<AptosCoin>(account, @clicker, DIG_APTOS_AMOUNT);
+        coin::transfer<AptosCoin>(account, @admin, DIG_APTOS_AMOUNT);
 
         *vector::borrow_mut(&mut game_state.grid_state, square_index) = *vector::borrow_mut(&mut game_state.grid_state, square_index) + 1;
 
@@ -421,6 +420,10 @@ module clicker::treasurehunt {
     }
 
     public entry fun reward_distribution ( creator: &signer ) acquires GameState {
+        let creator_addr = signer::address_of(creator);
+
+        assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
+
         let now_seconds: u64 = timestamp::now_seconds();
 
         let game_state = borrow_global_mut<GameState>(@clicker);
@@ -430,7 +433,7 @@ module clicker::treasurehunt {
         let daily_pool = coin::balance<ExGuiToken::ex_gui_token::ExGuiToken>(@clicker);
 
         // send gui token to admin address
-        coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, @admin, daily_pool / 10 * EX_GUI_TOKEN_DECIMAL );
+        coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, @admin, daily_pool / 10 );
         daily_pool = daily_pool - daily_pool / 10;
 
         // send gui token to each user addres
@@ -466,10 +469,11 @@ module clicker::treasurehunt {
 
         i = 0;
         while ( i < len ) {
-            coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, *vector::borrow(&game_state.users_list, i), *vector::borrow(&updated_users_dig, i) * daily_pool / total * EX_GUI_TOKEN_DECIMAL );
+            coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, *vector::borrow(&game_state.users_list, i), *vector::borrow(&updated_users_dig, i) * daily_pool / total );
 
             let user_state = vector::borrow_mut(&mut game_state.users_state, i);
-            user_state.earned_pool = user_state.earned_pool + ( *vector::borrow(&updated_users_dig, i) * daily_pool / total );
+            user_state.earned_pool = user_state.earned_pool + ( *vector::borrow(&updated_users_dig, i) * daily_pool / total / EX_GUI_TOKEN_DECIMAL );
+            user_state.dig = 0;
 
             i = i + 1;
         };
@@ -508,5 +512,52 @@ module clicker::treasurehunt {
 
         *game_state
     }
+
+    // #[test(creator = @0x123)]
+    // fun test_start_event(creator: &signer) acquires GameState {
+    //     start_event(creator, 271821291);
+
+
+    // }
+
+    // #[test(creator = @0x123)]
+    // fun test_pause_and_resume(creator: &signer) acquires GameState {
+        
+    // }
+
+    // #[test(creator = @0x123)]
+    // fun test_end_event(creator: &signer) acquires GameState {
+        
+    // }
+
+    // #[test(creator = @0x123)]
+    // fun test_connect_game(creator: &signer) acquires GameState {
+        
+    // }
+
+    // #[test(creator = @0x123)]
+    // fun test_dig(creator: &signer) acquires GameState {
+        
+    // }
+
+    // #[test(creator = @0x123)]
+    // fun test_purchase_powerup(creator: &signer) acquires GameState {
+        
+    // }
+
+    // #[test(creator = @0x123)]
+    // fun test_charge_energy(creator: &signer) acquires GameState {
+        
+    // }
+
+    // #[test(creator = @0x123)]
+    // fun test_reward_distribution(creator: &signer) acquires GameState {
+        
+    // }
+
+    // #[test(creator = @0x123)]
+    // fun test_withdraw(creator: &signer) acquires GameState {
+        
+    // }
 
 }
