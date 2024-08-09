@@ -22,6 +22,7 @@ module clicker::treasurehunt {
     const EGAME_PAUSED: u8 = 2;
     /// Digging
     const DIG_APTOS_AMOUNT: u64 = 10000; // 0.0001 apt
+    const APTOS_TOKEN_DECIMAL: u64 = 100_000_000;
     const EX_GUI_TOKEN_DECIMAL: u64 = 1_000_000;
 
     /// The user is not allowed to do this operation
@@ -58,6 +59,8 @@ module clicker::treasurehunt {
     const NOT_DISTRIBUTION_TIME: u64 = 15;
     /// Time set error
     const TIME_SET_ERROR: u64 = 16;
+    /// Incorrect token type
+    const INCORRECT_TOKEN_TYPE: u64 = 17;
 
     struct UserState has drop, store, copy {
         dig: u64,
@@ -315,12 +318,11 @@ module clicker::treasurehunt {
             user_state.powerup = 0;
         };
 
-        assert!( ( user_state.powerup == 0 && ( now_microseconds - user_state.update_time ) > 190_000  )
+        assert!( ( user_state.powerup == 0 && ( now_microseconds - user_state.update_time ) > 200_000  )
         || ( user_state.powerup == 1 && ( now_microseconds - user_state.update_time ) > 130_000 )
-        || ( user_state.powerup == 2 && ( now_microseconds - user_state.update_time ) > 60_000 ) 
-        || ( user_state.powerup == 3 && ( now_microseconds - user_state.update_time ) >  35_000 ),
+        || ( user_state.powerup == 2 && ( now_microseconds - user_state.update_time ) > 66_000 ) 
+        || ( user_state.powerup == 3 && ( now_microseconds - user_state.update_time ) >  40_000 ),
         error::unavailable(TOO_HIGH_DIGGING_SPEED) ); // check diggingtime according to powerup plan
-
         assert!(*vector::borrow(&game_state.grid_state, square_index) < 100, error::invalid_argument(EXCEED_DIGGING));
 
         coin::transfer<AptosCoin>(account, @clicker, DIG_APTOS_AMOUNT);
@@ -465,6 +467,24 @@ module clicker::treasurehunt {
             user_state.earned_pool = user_state.earned_pool + ( *vector::borrow(&updated_users_dig, i) * daily_pool / total );
 
             i = i + 1;
+        };
+    }
+
+    public entry fun withdraw ( account: &signer, token_type: u64, dest_addr: address, amount: u64 ) acquires GameState {
+        let signer_addr = signer::address_of(account);
+
+        let game_state = borrow_global_mut<GameState>(@clicker);
+
+        let ( found, index ) = vector::index_of(&game_state.users_list, &signer_addr);
+
+        assert!( found, error::unavailable(UNREGISTERED_USER) );
+        assert!( token_type == 1 || token_type == 2, error::unavailable(INCORRECT_TOKEN_TYPE) );
+
+        if ( token_type == 1 ) {
+            coin::transfer<AptosCoin>(account, dest_addr, amount * APTOS_TOKEN_DECIMAL );
+        }
+        else if ( token_type == 2 ) {
+            coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>(account, dest_addr, amount * EX_GUI_TOKEN_DECIMAL);
         };
     }
 
