@@ -94,6 +94,7 @@ module clicker::treasurehunt {
         leaderboard: LeaderBoard,
         holes: u64,
         total_pool: u256,
+        daily_pool: u256
     }
 
     struct ModuleData has key {
@@ -149,6 +150,7 @@ module clicker::treasurehunt {
                 },
                 holes: 0,
                 total_pool: 0,
+                daily_pool: 0
             });
         };
 
@@ -233,6 +235,7 @@ module clicker::treasurehunt {
             user_state.powerup = 1;
             user_state.powerup_purchase_time = now_seconds;
 
+            game_state.daily_pool = game_state.daily_pool + 250_000;
             game_state.total_pool = game_state.total_pool + 250_000;
         }
         else if( plan == 2 ) {
@@ -245,6 +248,7 @@ module clicker::treasurehunt {
             user_state.powerup = 2;
             user_state.powerup_purchase_time = now_seconds;
 
+            game_state.daily_pool = game_state.daily_pool + 500_000;
             game_state.total_pool = game_state.total_pool + 500_000;
         }
         else if ( plan == 3 ) {
@@ -257,6 +261,7 @@ module clicker::treasurehunt {
             user_state.powerup = 3;
             user_state.powerup_purchase_time = now_seconds;
 
+            game_state.daily_pool = game_state.daily_pool + 650_000;
             game_state.total_pool = game_state.total_pool + 650_000;
         }
     }
@@ -468,6 +473,8 @@ module clicker::treasurehunt {
 
             i = i + 1;
         };
+
+        game_state.daily_pool = 0;
     }
 
     public entry fun withdraw ( account: &signer, token_type: u64, dest_addr: address, amount: u64 ) acquires GameState {
