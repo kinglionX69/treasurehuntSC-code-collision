@@ -275,18 +275,19 @@ module clicker::treasurehunt {
         let game_state = borrow_global_mut<GameState>(@clicker);
 
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
-        assert!(!vector::contains(&game_state.users_list, &signer_addr), error::unavailable(ALREADY_REGISTERED_USER));
+        let ( found, index ) = vector::index_of(&game_state.users_list, &signer_addr);
+        if ( !found ) {
+            // managed_coin::register<ExGuiToken::ex_gui_token::ExGuiToken> ( account ); // change with gui coin
 
-        managed_coin::register<ExGuiToken::ex_gui_token::ExGuiToken> ( account ); // change with gui coin
+            vector::push_back(&mut game_state.users_list, signer_addr);
 
-        vector::push_back(&mut game_state.users_list, signer_addr);
+            let init_vector = vector::empty();
+            while ( vector::length(&init_vector) < 71 ) {
+                vector::push_back(&mut init_vector, 0);
+            };
 
-        let init_vector = vector::empty();
-        while ( vector::length(&init_vector) < 71 ) {
-            vector::push_back(&mut init_vector, 0);
-        };
-
-        vector::push_back(&mut game_state.users_state, UserState{ dig: 0, earned_pool: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  energy: 500, update_time: timestamp::now_microseconds() });
+            vector::push_back(&mut game_state.users_state, UserState{ dig: 0, earned_pool: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  energy: 500, update_time: timestamp::now_microseconds() });
+        }
     }
     /**
         plan 0: maximum digging speed 5/s 
