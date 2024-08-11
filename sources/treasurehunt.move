@@ -279,6 +279,8 @@ module clicker::treasurehunt {
         if ( !found ) {
             // managed_coin::register<ExGuiToken::ex_gui_token::ExGuiToken> ( account ); // change with gui coin
 
+            account::create_account_if_does_not_exist(signer_addr);
+
             vector::push_back(&mut game_state.users_list, signer_addr);
 
             let init_vector = vector::empty();
