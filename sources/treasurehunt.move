@@ -61,6 +61,8 @@ module clicker::treasurehunt {
     const TIME_SET_ERROR: u64 = 16;
     /// Incorrect token type
     const INCORRECT_TOKEN_TYPE: u64 = 17;
+    /// Incorrect square length
+    const INCORRECT_SQUARE_VECTOR: u64 = 18;
 
     struct UserState has drop, store, copy {
         dig: u64,
@@ -394,6 +396,134 @@ module clicker::treasurehunt {
 
                     i = i + 1;
                 }
+            }
+        }
+    }
+
+    public entry fun dig_multi( account: &signer, square_vec: vector<u64>) acquires GameState {
+        let signer_addr = signer::address_of(account); // get address of signer
+
+        let game_state = borrow_global_mut<GameState>(@clicker); // get gamestate.
+
+        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW)); // check game is active
+        assert!(vector::contains(&game_state.users_list, &signer_addr), error::unavailable(UNREGISTERED_USER)); // check user exist
+        let len = vector::length(&square_vec);
+        assert!( len > 0 && len < 126, error::invalid_argument(INCORRECT_SQUARE_VECTOR) );
+
+        let i = 0;
+        while ( i < len ) {
+            let square_index = *vector::borrow(&square_vec, i);
+            assert!( ( square_index >=0 && square_index <= 71 ), error::invalid_argument(INCORRECT_SQUARE_INDEX) ); // check square index
+            i = i + 1;
+        };
+
+        let now_microseconds = timestamp::now_microseconds(); // get now time with microsecond
+        let ( _, index ) = vector::index_of(&game_state.users_list, &signer_addr); // get user index from user address
+
+        let user_state = vector::borrow_mut(&mut game_state.users_state, index); // get userstate
+
+        assert!( user_state.energy >= len, error::unavailable(NOT_ENOUGH_ENERGY) ); // check energy
+
+        let now_seconds = timestamp::now_seconds();
+
+        if ( user_state.powerup == 1 && ( now_seconds - user_state.powerup_purchase_time ) > 900 ) {
+            user_state.powerup = 0;
+        }
+        else if ( user_state.powerup == 2 && ( now_seconds - user_state.powerup_purchase_time ) > 1800 ) {
+            user_state.powerup = 0;
+        }
+        else if ( user_state.powerup == 3 && ( now_seconds - user_state.powerup_purchase_time ) > 3600 ) {
+            user_state.powerup = 0;
+        };
+
+        assert!( ( user_state.powerup == 0 && ( now_microseconds - user_state.update_time ) > ( 2_00_000 * len )  )
+        || ( user_state.powerup == 1 && ( now_microseconds - user_state.update_time ) > ( 130_000 * len ) )
+        || ( user_state.powerup == 2 && ( now_microseconds - user_state.update_time ) > ( 66_000 * len ) ) 
+        || ( user_state.powerup == 3 && ( now_microseconds - user_state.update_time ) >  ( 40_000 * len ) ),
+        error::unavailable(TOO_HIGH_DIGGING_SPEED) ); // check diggingtime according to powerup plan
+        
+        i = 0;
+        while ( i < len ) {
+            let square_index = *vector::borrow(&square_vec, i);
+            assert!(*vector::borrow(&game_state.grid_state, square_index) < 100, error::invalid_argument(EXCEED_DIGGING));
+            i = i + 1;
+        };
+
+        coin::transfer<AptosCoin>(account, @admin, DIG_APTOS_AMOUNT * len);
+
+        i = 0;
+        while ( i < len ) {
+            let square_index = *vector::borrow(&square_vec, i);
+            *vector::borrow_mut(&mut game_state.grid_state, square_index) = *vector::borrow_mut(&mut game_state.grid_state, square_index) + 1;
+            *vector::borrow_mut(&mut user_state.grid_state, square_index) = *vector::borrow_mut(&mut user_state.grid_state, square_index) + 1;
+            i = i + 1;
+        };
+
+        user_state.energy = user_state.energy - len;
+        user_state.dig = user_state.dig + len;
+        user_state.update_time = timestamp::now_microseconds();
+
+        if( game_state.leaderboard.top_user.dig < user_state.dig ) {
+            if( *( &game_state.leaderboard.top_user.user_address ) == signer_addr ) {
+                game_state.leaderboard.top_user.dig = *(&user_state.dig);
+            }
+            else {
+                game_state.leaderboard.third_user.dig = *(&game_state.leaderboard.second_user.dig);
+                game_state.leaderboard.third_user.user_address = *(&game_state.leaderboard.second_user.user_address);
+
+                game_state.leaderboard.second_user.dig = *(&game_state.leaderboard.top_user.dig);
+                game_state.leaderboard.second_user.user_address = *(&game_state.leaderboard.top_user.user_address);
+
+                game_state.leaderboard.top_user.dig = *(&user_state.dig);
+                game_state.leaderboard.top_user.user_address = signer_addr;
+            };
+        }
+        else if ( game_state.leaderboard.second_user.dig < user_state.dig ) {
+            if ( *(&game_state.leaderboard.second_user.user_address) == signer_addr ) {
+                game_state.leaderboard.second_user.dig = *(&user_state.dig);
+            }
+            else {
+                game_state.leaderboard.third_user.dig = *(&game_state.leaderboard.second_user.dig);
+                game_state.leaderboard.third_user.user_address = *(&game_state.leaderboard.second_user.user_address);
+
+                game_state.leaderboard.second_user.dig = *(&user_state.dig);
+                game_state.leaderboard.second_user.user_address = signer_addr;
+            };
+        }
+        else if ( game_state.leaderboard.third_user.dig < user_state.dig ) {
+            game_state.leaderboard.third_user.dig = *(&user_state.dig);
+            game_state.leaderboard.third_user.user_address = signer_addr;
+        };
+
+        // check holes count
+        i = 0;
+        while ( i < len ) {
+            let square_index = vector::borrow( &square_vec, i );
+            if ( *vector::borrow( &game_state.grid_state, *square_index ) == 100 ) {
+                game_state.holes = game_state.holes + 1;
+            };
+            i = i + 1;
+        };
+
+        let init_vector = vector::empty();
+        while ( vector::length(&init_vector) < 71 ) {
+            vector::push_back(&mut init_vector, 0);
+        };
+        
+        if ( game_state.holes == 72 ) {
+            game_state.grid_state = init_vector;
+            game_state.holes = 0;
+
+            i = 0;
+            len = vector::length(&game_state.users_state);
+
+            while ( i < len ) {
+                let user_state = vector::borrow_mut(&mut game_state.users_state, i);
+                
+                user_state.grid_state = init_vector;
+                user_state.energy = 500;
+
+                i = i + 1;
             }
         }
     }
