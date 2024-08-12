@@ -277,9 +277,6 @@ module clicker::treasurehunt {
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
         let ( found, index ) = vector::index_of(&game_state.users_list, &signer_addr);
         if ( !found ) {
-            // managed_coin::register<ExGuiToken::ex_gui_token::ExGuiToken> ( account ); // change with gui coin
-
-            account::create_account_if_does_not_exist(signer_addr);
 
             vector::push_back(&mut game_state.users_list, signer_addr);
 
