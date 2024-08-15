@@ -216,7 +216,7 @@ module clicker::treasurehunt {
         plan: 1(1.5 times), 2(3 times), 3(5 times)
      */
     // purchase powerup
-    public entry fun purchase_powerup ( account: &signer, plan: u8 ) acquires GameState {
+    public entry fun purchase_powerup ( account: &signer, plan: u64 ) acquires GameState {
         let signer_addr = signer::address_of(account);
 
         let game_state = borrow_global_mut<GameState>(@clicker);
@@ -225,14 +225,26 @@ module clicker::treasurehunt {
         let (found, index) = vector::index_of(&game_state.users_list, &signer_addr);
 
         assert!(found, error::unavailable(UNREGISTERED_USER)); // check user exist
+
+        let user_state = vector::borrow_mut(&mut game_state.users_state, index);
+        let now_seconds = timestamp::now_seconds();
+
+        if ( user_state.powerup == 1 && ( now_seconds - user_state.powerup_purchase_time ) > 900 ) {
+            user_state.powerup = 0;
+        }
+        else if ( user_state.powerup == 2 && ( now_seconds - user_state.powerup_purchase_time ) > 1800 ) {
+            user_state.powerup = 0;
+        }
+        else if ( user_state.powerup == 3 && ( now_seconds - user_state.powerup_purchase_time ) > 3600 ) {
+            user_state.powerup = 0;
+        };
+
         assert!( plan == 1 || plan == 2 || plan == 3, error::unavailable(NOT_SUPPOTED_PLAN));
 
-        if( plan == 1 ) {
+        if( plan == 1 && ( user_state.powerup < plan ) ) {
             coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( account, @clicker, 250_000 * EX_GUI_TOKEN_DECIMAL );
 
-            let user_state = vector::borrow_mut(&mut game_state.users_state, index);
-
-            let now_seconds = timestamp::now_seconds();
+            now_seconds = timestamp::now_seconds();
 
             user_state.powerup = 1;
             user_state.powerup_purchase_time = now_seconds;
@@ -240,12 +252,10 @@ module clicker::treasurehunt {
             game_state.daily_pool = game_state.daily_pool + 250_000;
             game_state.total_pool = game_state.total_pool + 250_000;
         }
-        else if( plan == 2 ) {
+        else if( plan == 2 && ( user_state.powerup < plan ) ) {
             coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( account, @clicker, 500_000 * EX_GUI_TOKEN_DECIMAL );
 
-            let user_state = vector::borrow_mut(&mut game_state.users_state, index);
-
-            let now_seconds = timestamp::now_seconds();
+            now_seconds = timestamp::now_seconds();
 
             user_state.powerup = 2;
             user_state.powerup_purchase_time = now_seconds;
@@ -253,12 +263,10 @@ module clicker::treasurehunt {
             game_state.daily_pool = game_state.daily_pool + 500_000;
             game_state.total_pool = game_state.total_pool + 500_000;
         }
-        else if ( plan == 3 ) {
+        else if ( plan == 3 && ( user_state.powerup < plan ) ) {
             coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( account, @clicker, 650_000 * EX_GUI_TOKEN_DECIMAL );
 
-            let user_state = vector::borrow_mut(&mut game_state.users_state, index);
-
-            let now_seconds = timestamp::now_seconds();
+            now_seconds = timestamp::now_seconds();
 
             user_state.powerup = 3;
             user_state.powerup_purchase_time = now_seconds;
@@ -299,7 +307,6 @@ module clicker::treasurehunt {
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW)); // check game is active
         assert!(vector::contains(&game_state.users_list, &signer_addr), error::unavailable(UNREGISTERED_USER)); // check user exist
         let len = vector::length(&square_vec);
-        assert!( len > 0 && len < 126, error::invalid_argument(INCORRECT_SQUARE_VECTOR) );
 
         let i = 0;
         while ( i < len ) {
@@ -327,24 +334,14 @@ module clicker::treasurehunt {
             user_state.powerup = 0;
         };
 
-        assert!( ( user_state.powerup == 0 && ( now_microseconds - user_state.update_time ) > ( 2_00_000 * len )  )
-        || ( user_state.powerup == 1 && ( now_microseconds - user_state.update_time ) > ( 130_000 * len ) )
-        || ( user_state.powerup == 2 && ( now_microseconds - user_state.update_time ) > ( 66_000 * len ) ) 
-        || ( user_state.powerup == 3 && ( now_microseconds - user_state.update_time ) >  ( 40_000 * len ) ),
-        error::unavailable(TOO_HIGH_DIGGING_SPEED) ); // check diggingtime according to powerup plan
-        
-        i = 0;
-        while ( i < len ) {
-            let square_index = *vector::borrow(&square_vec, i);
-            assert!(*vector::borrow(&game_state.grid_state, square_index) < 100, error::invalid_argument(EXCEED_DIGGING));
-            i = i + 1;
-        };
-
         coin::transfer<AptosCoin>(account, @admin, DIG_APTOS_AMOUNT * len);
 
         i = 0;
         while ( i < len ) {
             let square_index = *vector::borrow(&square_vec, i);
+            
+            if ( *vector::borrow(&game_state.grid_state, square_index) == 100 ) continue;
+
             *vector::borrow_mut(&mut game_state.grid_state, square_index) = *vector::borrow_mut(&mut game_state.grid_state, square_index) + 1;
             *vector::borrow_mut(&mut user_state.grid_state, square_index) = *vector::borrow_mut(&mut user_state.grid_state, square_index) + 1;
             i = i + 1;
@@ -437,8 +434,14 @@ module clicker::treasurehunt {
         assert!( ( user_state.energy == 0 && ( now_microseconds - user_state.update_time ) > 5_000_000 )
         || ( user_state.energy != 0 && ( now_microseconds - user_state.update_time ) > 1_000_000 ), error::unavailable( TOO_FAST_REQUEST ) );
 
-        if ( user_state.energy > 495 ) user_state.energy = 500;
-        else user_state.energy = user_state.energy + 5;
+        if ( user_state.energy > 495 ) {
+            user_state.energy = 500;
+            user_state.update_time = now_microseconds;
+        }
+        else {
+            user_state.energy = user_state.energy + 5;
+            user_state.update_time = now_microseconds;
+        };
     }
 
     public entry fun reward_distribution ( creator: &signer ) acquires GameState {
