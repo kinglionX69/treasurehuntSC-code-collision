@@ -63,6 +63,8 @@ module clicker::treasurehunt {
     const INCORRECT_TOKEN_TYPE: u64 = 17;
     /// Incorrect square length
     const INCORRECT_SQUARE_VECTOR: u64 = 18;
+    /// Incorrect update energy
+    const INCORRECT_UPDATE_ENERGY: u64 = 19;
 
     struct UserState has drop, store, copy {
         dig: u64,
@@ -86,7 +88,7 @@ module clicker::treasurehunt {
     }
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct GameState has copy, key{
+    struct GameState has copy, store, key{
         status: u8,
         start_time: u64, // with second
         end_time: u64, // with second
@@ -97,6 +99,12 @@ module clicker::treasurehunt {
         holes: u64,
         total_pool: u256,
         daily_pool: u256
+    }
+
+    struct GameStateWithTime has copy, key {
+        game_state: GameState,
+        now_time_second: u64,
+        now_time_microsecond: u64
     }
 
     struct ModuleData has key {
@@ -299,11 +307,12 @@ module clicker::treasurehunt {
         }
     }
 
-    public entry fun dig_multi( account: &signer, square_vec: vector<u64>) acquires GameState {
+    public entry fun dig_multi( account: &signer, square_vec: vector<u64>, update_energy: u64) acquires GameState {
         let signer_addr = signer::address_of(account); // get address of signer
 
         let game_state = borrow_global_mut<GameState>(@clicker); // get gamestate.
 
+        assert!((update_energy >= 0 && update_energy < 500), error::invalid_argument(INCORRECT_UPDATE_ENERGY));
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW)); // check game is active
         assert!(vector::contains(&game_state.users_list, &signer_addr), error::unavailable(UNREGISTERED_USER)); // check user exist
         let len = vector::length(&square_vec);
@@ -320,8 +329,6 @@ module clicker::treasurehunt {
 
         let user_state = vector::borrow_mut(&mut game_state.users_state, index); // get userstate
 
-        assert!( user_state.energy >= len, error::unavailable(NOT_ENOUGH_ENERGY) ); // check energy
-
         let now_seconds = timestamp::now_seconds();
 
         if ( user_state.powerup == 1 && ( now_seconds - user_state.powerup_purchase_time ) > 900 ) {
@@ -336,6 +343,8 @@ module clicker::treasurehunt {
 
         coin::transfer<AptosCoin>(account, @admin, DIG_APTOS_AMOUNT * len);
 
+        user_state.energy = update_energy;
+
         i = 0;
         while ( i < len ) {
             let square_index = *vector::borrow(&square_vec, i);
@@ -344,11 +353,12 @@ module clicker::treasurehunt {
 
             *vector::borrow_mut(&mut game_state.grid_state, square_index) = *vector::borrow_mut(&mut game_state.grid_state, square_index) + 1;
             *vector::borrow_mut(&mut user_state.grid_state, square_index) = *vector::borrow_mut(&mut user_state.grid_state, square_index) + 1;
+
+            user_state.dig = user_state.dig + 1;
+
             i = i + 1;
         };
 
-        user_state.energy = user_state.energy - len;
-        user_state.dig = user_state.dig + len;
         user_state.update_time = timestamp::now_microseconds();
 
         if( game_state.leaderboard.top_user.dig < user_state.dig ) {
@@ -416,34 +426,6 @@ module clicker::treasurehunt {
         }
     }
 
-    public entry fun charge_energy( account: &signer ) acquires GameState {
-        let signer_addr = signer::address_of(account);
-
-        let game_state = borrow_global_mut<GameState>(@clicker);
-
-        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
-        assert!(vector::contains(&game_state.users_list, &signer_addr), error::unavailable(UNREGISTERED_USER));
-
-        let ( _, index ) = vector::index_of(&game_state.users_list, &signer_addr);
-
-        let user_state = vector::borrow_mut(&mut game_state.users_state, index);
-
-        let now_microseconds = timestamp::now_microseconds();
-
-        assert!( ( user_state.energy >= 0 && user_state.energy < 500 ), error::unavailable( UNKNOWN_ENERGY ) );
-        assert!( ( user_state.energy == 0 && ( now_microseconds - user_state.update_time ) > 5_000_000 )
-        || ( user_state.energy != 0 && ( now_microseconds - user_state.update_time ) > 1_000_000 ), error::unavailable( TOO_FAST_REQUEST ) );
-
-        if ( user_state.energy > 495 ) {
-            user_state.energy = 500;
-            user_state.update_time = now_microseconds;
-        }
-        else {
-            user_state.energy = user_state.energy + 5;
-            user_state.update_time = now_microseconds;
-        };
-    }
-
     public entry fun reward_distribution ( creator: &signer ) acquires GameState {
         let creator_addr = signer::address_of(creator);
 
@@ -453,7 +435,7 @@ module clicker::treasurehunt {
 
         let game_state = borrow_global_mut<GameState>(@clicker);
 
-        // assert!( ( now_seconds - game_state.start_time ) > 86_400, error::permission_denied( NOT_DISTRIBUTION_TIME ) );
+        assert!( ( now_seconds - game_state.start_time ) > 86_400, error::permission_denied( NOT_DISTRIBUTION_TIME ) );
 
         let daily_pool = coin::balance<ExGuiToken::ex_gui_token::ExGuiToken>(@clicker);
 
@@ -506,24 +488,6 @@ module clicker::treasurehunt {
         game_state.daily_pool = 0;
     }
 
-    public entry fun withdraw ( account: &signer, token_type: u64, dest_addr: address, amount: u64 ) acquires GameState {
-        let signer_addr = signer::address_of(account);
-
-        let game_state = borrow_global_mut<GameState>(@clicker);
-
-        let ( found, index ) = vector::index_of(&game_state.users_list, &signer_addr);
-
-        assert!( found, error::unavailable(UNREGISTERED_USER) );
-        assert!( token_type == 1 || token_type == 2, error::unavailable(INCORRECT_TOKEN_TYPE) );
-
-        if ( token_type == 1 ) {
-            coin::transfer<AptosCoin>(account, dest_addr, amount * APTOS_TOKEN_DECIMAL );
-        }
-        else if ( token_type == 2 ) {
-            coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>(account, dest_addr, amount * EX_GUI_TOKEN_DECIMAL);
-        };
-    }
-
     #[view]
     public fun show_leaderboard (): LeaderBoard acquires GameState {
         let game_state = borrow_global<GameState>(@clicker);
@@ -538,17 +502,32 @@ module clicker::treasurehunt {
         *game_state
     }
 
-    // #[test(creator = @0x123)]
-    // fun test_start_event(creator: &signer) acquires GameState {
-    //     start_event(creator, 271821291);
+    #[view]
+    public fun game_state_with_time (): GameStateWithTime acquires GameState {
+        let game_state = borrow_global<GameState>(@clicker);
 
+        GameStateWithTime {
+            game_state: *game_state,
+            now_time_second: timestamp::now_seconds(),
+            now_time_microsecond: timestamp::now_microseconds()
+        }
+    }
 
-    // }
+    
+    #[test_only]
+    use aptos_framework::account;
 
-    // #[test(creator = @0x123)]
-    // fun test_pause_and_resume(creator: &signer) acquires GameState {
-        
-    // }
+    #[test(creator = @0x123)]
+    fun test_pause_and_resume(creator: &signer) acquires GameState {
+        let collection_name = string::utf8(b"collection name");
+        let token_name = string::utf8(b"token name");
+
+        create_collection_helper(creator, collection_name, true);
+        let token = mint_helper(creator, collection_name, token_name);
+        freeze_transfer(creator, token);
+        unfreeze_transfer(creator, token);
+        object::transfer(creator, token, @0x345);
+    }
 
     // #[test(creator = @0x123)]
     // fun test_end_event(creator: &signer) acquires GameState {
