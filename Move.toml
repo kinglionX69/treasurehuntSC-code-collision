@@ -10,11 +10,11 @@ aptos_framework = "0x1"
 aptos_token = "0x3"
 aptos_token_objects = "0x4"
 
-clicker="0xd61f2fbb766897a0dfe34f0c05ec000044649ed2fbfe8ab5ab826b6d08766174"
+clicker="0x28d1bda7daee00e65870588be20d274bf917b7540787547ea7f5febae28933c5"
 
 admin="0x2e9a164a50b91d5e447bc53fe4fa4adc1217616a8f50fe2fcb69a1691f59a860"
 
-ExGuiToken="0xd61f2fbb766897a0dfe34f0c05ec000044649ed2fbfe8ab5ab826b6d08766174"
+ExGuiToken="0x28d1bda7daee00e65870588be20d274bf917b7540787547ea7f5febae28933c5"
 
 [dev-addresses]
 

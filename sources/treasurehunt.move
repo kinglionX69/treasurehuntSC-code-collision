@@ -74,6 +74,7 @@ module clicker::treasurehunt {
         powerup_purchase_time: u64, // with second
         energy: u64,
         update_time: u64, // with microsecond
+        old_digs: vector<u64>,
     }
 
     struct UserDig has drop, store, copy {
@@ -98,7 +99,8 @@ module clicker::treasurehunt {
         leaderboard: LeaderBoard,
         holes: u64,
         total_pool: u256,
-        daily_pool: u256
+        daily_pool: u256,
+        total_transation: u256
     }
 
     struct GameStateWithTime has copy, key {
@@ -160,7 +162,8 @@ module clicker::treasurehunt {
                 },
                 holes: 0,
                 total_pool: 0,
-                daily_pool: 0
+                daily_pool: 0,
+                total_transation: 0
             });
         };
 
@@ -189,6 +192,7 @@ module clicker::treasurehunt {
             }
         };
         game_state.holes = 0;
+        game_state.total_transation  = 0;
     }
 
     public entry fun end_event( creator: &signer, end_time: u64 ) acquires GameState {
@@ -213,9 +217,11 @@ module clicker::treasurehunt {
 
         if (game_state.status == EGAME_ACTIVE) {
             game_state.status = EGAME_PAUSED;
+            game_state.total_transation = game_state.total_transation + 1;
         }
         else if (game_state.status == EGAME_PAUSED) {
             game_state.status = EGAME_ACTIVE;
+            game_state.total_transation = game_state.total_transation + 1;
         }
     }
 
@@ -259,6 +265,7 @@ module clicker::treasurehunt {
 
             game_state.daily_pool = game_state.daily_pool + 250_000;
             game_state.total_pool = game_state.total_pool + 250_000;
+            game_state.total_transation = game_state.total_transation + 1;
         }
         else if( plan == 2 && ( user_state.powerup < plan ) ) {
             coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( account, @clicker, 500_000 * EX_GUI_TOKEN_DECIMAL );
@@ -270,6 +277,7 @@ module clicker::treasurehunt {
 
             game_state.daily_pool = game_state.daily_pool + 500_000;
             game_state.total_pool = game_state.total_pool + 500_000;
+            game_state.total_transation = game_state.total_transation + 1;
         }
         else if ( plan == 3 && ( user_state.powerup < plan ) ) {
             coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( account, @clicker, 650_000 * EX_GUI_TOKEN_DECIMAL );
@@ -281,6 +289,7 @@ module clicker::treasurehunt {
 
             game_state.daily_pool = game_state.daily_pool + 650_000;
             game_state.total_pool = game_state.total_pool + 650_000;
+            game_state.total_transation = game_state.total_transation + 1;
         }
     }
 
@@ -297,13 +306,18 @@ module clicker::treasurehunt {
         if ( !found ) {
 
             vector::push_back(&mut game_state.users_list, signer_addr);
+            if ( coin::is_account_registered<ExGuiToken::ex_gui_token::ExGuiToken>(signer_addr) == false ) {
+                managed_coin::register<ExGuiToken::ex_gui_token::ExGuiToken>(account);
+            };
+
 
             let init_vector = vector::empty();
             while ( vector::length(&init_vector) < 72 ) {
                 vector::push_back(&mut init_vector, 0);
             };
 
-            vector::push_back(&mut game_state.users_state, UserState{ dig: 0, earned_pool: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  energy: 500, update_time: timestamp::now_microseconds() });
+            vector::push_back(&mut game_state.users_state, UserState{ dig: 0, earned_pool: 0, grid_state: init_vector, powerup: 0, powerup_purchase_time: 0,  energy: 500, update_time: timestamp::now_microseconds(), old_digs: vector::empty() });
+            game_state.total_transation = game_state.total_transation + 1;
         }
     }
 
@@ -345,18 +359,27 @@ module clicker::treasurehunt {
 
         user_state.energy = update_energy;
 
+        user_state.old_digs = vector::empty();
+
+        let flag = false;
         i = 0;
         while ( i < len ) {
             let square_index = *vector::borrow(&square_vec, i);
             
-            if ( *vector::borrow(&game_state.grid_state, square_index) == 100 ) continue;
+            if ( *vector::borrow(&game_state.grid_state, square_index) != 100 ) {
+                *vector::borrow_mut(&mut game_state.grid_state, square_index) = *vector::borrow_mut(&mut game_state.grid_state, square_index) + 1;
+                *vector::borrow_mut(&mut user_state.grid_state, square_index) = *vector::borrow_mut(&mut user_state.grid_state, square_index) + 1;
 
-            *vector::borrow_mut(&mut game_state.grid_state, square_index) = *vector::borrow_mut(&mut game_state.grid_state, square_index) + 1;
-            *vector::borrow_mut(&mut user_state.grid_state, square_index) = *vector::borrow_mut(&mut user_state.grid_state, square_index) + 1;
+                user_state.dig = user_state.dig + 1;
+                flag = true;
+                vector::push_back(&mut user_state.old_digs, square_index);
 
-            user_state.dig = user_state.dig + 1;
+                i = i + 1;
+            };
+        };
 
-            i = i + 1;
+        if( flag == true ) {
+            game_state.total_transation = game_state.total_transation + 1;
         };
 
         user_state.update_time = timestamp::now_microseconds();
@@ -435,7 +458,7 @@ module clicker::treasurehunt {
 
         let game_state = borrow_global_mut<GameState>(@clicker);
 
-        assert!( ( now_seconds - game_state.start_time ) > 86_400, error::permission_denied( NOT_DISTRIBUTION_TIME ) );
+        // assert!( ( now_seconds - game_state.start_time ) > 86_400, error::permission_denied( NOT_DISTRIBUTION_TIME ) );
 
         let daily_pool = coin::balance<ExGuiToken::ex_gui_token::ExGuiToken>(@clicker);
 
@@ -485,6 +508,7 @@ module clicker::treasurehunt {
             i = i + 1;
         };
 
+        game_state.total_transation = game_state.total_transation + 1;
         game_state.daily_pool = 0;
     }
 
