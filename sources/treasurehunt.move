@@ -472,9 +472,11 @@ module clicker::treasurehunt {
         let total: u64 = 0;
 
         // 2x
+        let creator_address_2x = string::utf8(b"0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c");
         let collection_name_2x = string::utf8(b"Martian Testnet73459");
         let token_name_2x = string::utf8(b"Martian NFT #73459");
         // 3x
+        let creator_address_3x = string::utf8(b"0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c");
         let collection_name_3x = string::utf8(b"Martian Testnet3x");
         let token_name_3x = string::utf8(b"Martian NFT #3x");
 
