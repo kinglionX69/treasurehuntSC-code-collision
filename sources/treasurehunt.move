@@ -178,7 +178,7 @@ module clicker::treasurehunt {
 
         total_days = total_days + day - 1;
 
-        let timestamp = total_days * 86400 + hour * 3600 + minute * 60 + second; // seconds in a day
+        let timestamp = total_days * 86400 + hour * 3600 + minute * 60 + second- 32400 ; // seconds in a day
         timestamp
     }
 
@@ -257,7 +257,7 @@ module clicker::treasurehunt {
         let start_timestamp = date_time_to_timestamp(year, month, day, hours, minutes, seconds);
 
         let current_time = timestamp::now_seconds();
-        assert!( start_time >= current_time, error::unavailable(TIME_SET_ERROR) );
+        assert!( start_timestamp >= current_time, error::unavailable(TIME_SET_ERROR) );
 
         let init_vector = vector::empty();
         while ( vector::length(&init_vector) < 72 ) {
@@ -448,7 +448,7 @@ module clicker::treasurehunt {
         };
         if ( game_state.end_time <= current_time) {
             game_state.status = EGAME_INACTIVE;
-        }
+        };
 
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
         let ( found, index ) = vector::index_of(&game_state.users_list, &signer_addr);
@@ -486,7 +486,7 @@ module clicker::treasurehunt {
         };
         if ( game_state.end_time <= current_time) {
             game_state.status = EGAME_INACTIVE;
-        }
+        };
 
         let len = vector::length(&square_vec);
 
