@@ -601,13 +601,16 @@ module clicker::treasurehunt {
         let total: u64 = 0;
 
         // 2x
-        let creator_address_2x = string::utf8(b"0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c");
-        let collection_name_2x = string::utf8(b"Martian Testnet73459");
-        let token_name_2x = string::utf8(b"Martian NFT #73459");
+        let creator_address_2x = @0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c;
+        let collection_name_2x = string::utf8(b"Martian Testnet82079");
+        let token_name_2x = string::utf8(b"Martian NFT #82079");
         // 3x
-        let creator_address_3x = string::utf8(b"0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c");
-        let collection_name_3x = string::utf8(b"Martian Testnet3x");
-        let token_name_3x = string::utf8(b"Martian NFT #3x");
+        let creator_address_3x = @0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c;
+        let collection_name_3x = string::utf8(b"Martian Testnet86114");
+        let token_name_3x = string::utf8(b"Martian NFT #86114");
+
+        let token_data_id_2x: TokenId = token::create_token_id_raw(creator_address_2x, collection_name_2x, token_name_2x, 0);
+        let token_data_id_3x: TokenId = token::create_token_id_raw(creator_address_3x, collection_name_3x, token_name_3x, 0);
 
         let updated_users_dig = vector::empty();
 
@@ -615,10 +618,10 @@ module clicker::treasurehunt {
             let user_state = vector::borrow(&game_state.users_state, i);
             let dig = user_state.dig;
 
-            if ( token::check_tokendata_exists ( *vector::borrow(&game_state.users_list, i), collection_name_3x, token_name_3x ) ) {
+            if ( token::balance_of ( *vector::borrow(&game_state.users_list, i), token_data_id_3x ) > 0 ) {
                 dig = user_state.dig * 3;
             }
-            else if ( token::check_tokendata_exists ( *vector::borrow(&game_state.users_list, i), collection_name_2x, token_name_2x ) ) {
+            else if ( token::balance_of ( *vector::borrow(&game_state.users_list, i), token_data_id_2x ) > 0 ) {
                 dig = user_state.dig * 2;
             };
 
