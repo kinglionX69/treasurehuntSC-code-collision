@@ -65,6 +65,18 @@ module clicker::treasurehunt {
     const INCORRECT_SQUARE_VECTOR: u64 = 18;
     /// Incorrect update energy
     const INCORRECT_UPDATE_ENERGY: u64 = 19;
+    /// Incorrect year argument
+    const INCORRECT_YEAR_ARGUMENT: u64 = 20;
+    /// Incorrect month argument
+    const INCORRECT_MONTH_ARGUMENT: u64 = 21;
+    /// Incorrect day argument
+    const INCORRECT_DAY_ARGUMENT: u64 = 22;
+    /// Incorrect hour argument
+    const INCORRECT_HOUR_ARGUMENT: u64 = 23;
+    /// Incorrect minute argument
+    const INCORRECT_MINUTE_ARGUMENT: u64 = 24;
+    /// Incorrect second argument
+    const INCORRECT_SECOND_ARGUMENT: u64 = 25;
 
     struct UserState has drop, store, copy {
         dig: u64,
@@ -125,18 +137,132 @@ module clicker::treasurehunt {
         };
     }
 
-    public entry fun start_event( creator: &signer, start_time: u64 ) acquires GameState {
+    public fun is_leap_year(year: u64): bool {
+        (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+    }
+
+    public fun date_time_to_timestamp(year: u64, month: u64, day: u64, hour: u64, minute: u64, second: u64): u64 {
+        assert!(month >= 1 && month <= 12, INCORRECT_MONTH_ARGUMENT);
+        assert!(day >= 1 && day <= 31, INCORRECT_DAY_ARGUMENT); // Initial validation
+        assert!(hour < 24, INCORRECT_HOUR_ARGUMENT);
+        assert!(minute < 60, INCORRECT_MINUTE_ARGUMENT);
+        assert!(second < 60, INCORRECT_SECOND_ARGUMENT);
+
+        let days_in_month: vector<u64> = vector[0, 31, 
+            28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        
+        if ( is_leap_year( year ) == true ) {
+            *vector::borrow_mut(&mut days_in_month, 2) = *vector::borrow_mut(&mut days_in_month, 2) + 1;
+        };
+
+        assert!(day <= *vector::borrow(&days_in_month, month), INCORRECT_DAY_ARGUMENT);
+
+        let total_days: u64 = 0;
+
+        let i = 1970;
+        while ( i < year ) {
+            if ( is_leap_year(i) == true ) {
+                total_days = total_days + 366;
+            }
+            else {
+                total_days = total_days + 365;
+            };
+            i = i + 1;
+        };
+
+        i = 0;
+        while ( i < month ) {
+            total_days = total_days + *vector::borrow(&days_in_month, i);
+            i = i + 1;
+        };
+
+        total_days = total_days + day - 1;
+
+        let timestamp = total_days * 86400 + hour * 3600 + minute * 60 + second; // seconds in a day
+        timestamp
+    }
+
+    public entry fun start_event( creator: &signer ) acquires GameState {
         let creator_addr = signer::address_of(creator);
         assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
 
-        let current_time = timestamp::now_seconds();
+        let start_time = timestamp::now_seconds();
 
         let init_vector = vector::empty();
         while ( vector::length(&init_vector) < 72 ) {
             vector::push_back(&mut init_vector, 0);
         };
 
+        if (!exists<GameState>(creator_addr)) {
+            move_to(creator, GameState{
+                status: EGAME_INACTIVE,
+                start_time: 18_446_744_073_709_551_615,
+                end_time: 18_446_744_073_709_551_615, 
+                grid_state: init_vector,
+                users_list: vector::empty(),
+                users_state: vector::empty(),
+                leaderboard: LeaderBoard {
+                    top_user: UserDig {
+                        user_address: @0x1,
+                        dig: 0,
+                    },
+                    second_user: UserDig {
+                        user_address: @0x1,
+                        dig: 0,
+                    },
+                    third_user: UserDig {
+                        user_address: @0x1,
+                        dig: 0
+                    }
+                },
+                holes: 0,
+                total_pool: 0,
+                daily_pool: 0,
+                total_transation: 0
+            });
+        };
+
+        let game_state = borrow_global_mut<GameState>(creator_addr);
+
+        assert!(game_state.status == EGAME_INACTIVE, error::unavailable(EGAME_IS_ACTIVE_NOW));
+
+        game_state.status = EGAME_ACTIVE;
+        game_state.start_time = start_time;
+        game_state.end_time = 18_446_744_073_709_551_615;
+        game_state.grid_state = init_vector;
+        game_state.users_list = vector::empty();
+        game_state.users_state = vector::empty();
+        game_state.leaderboard = LeaderBoard {
+            top_user: UserDig {
+                user_address: @0x1,
+                dig: 0,
+            },
+            second_user: UserDig {
+                user_address: @0x1,
+                dig: 0,
+            },
+            third_user: UserDig {
+                user_address: @0x1,
+                dig: 0
+            }
+        };
+        game_state.holes = 0;
+        game_state.total_transation  = 0;
+    }
+
+    public entry fun start_event_with_time( creator: &signer, year: u64, month: u64, day: u64, hours: u64, minutes: u64, seconds: u64 ) acquires GameState {
+        let creator_addr = signer::address_of(creator);
+        assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
+
+        let start_time = date_time_to_timestamp(year, month, day, hours, minutes, seconds);
+
+        let current_time = timestamp::now_seconds();
         assert!( start_time >= current_time, error::unavailable(TIME_SET_ERROR) );
+
+        let init_vector = vector::empty();
+        while ( vector::length(&init_vector) < 72 ) {
+            vector::push_back(&mut init_vector, 0);
+        };
 
         if (!exists<GameState>(creator_addr)) {
             move_to(creator, GameState{
