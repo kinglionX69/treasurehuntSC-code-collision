@@ -178,7 +178,7 @@ module clicker::treasurehunt {
 
         total_days = total_days + day - 1;
 
-        let timestamp = total_days * 86400 + hour * 3600 + minute * 60 + second- 32400 ; // seconds in a day
+        let timestamp = total_days * 86400 + hour * 3600 + minute * 60 + second- 10800 ; // seconds in a day
         timestamp
     }
 
