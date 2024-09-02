@@ -450,7 +450,6 @@ module clicker::treasurehunt {
             game_state.status = EGAME_INACTIVE;
         };
 
-        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
         let ( found, index ) = vector::index_of(&game_state.users_list, &signer_addr);
         if ( !found ) {
 
