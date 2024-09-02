@@ -526,38 +526,6 @@ module clicker::treasurehunt {
 
         user_state.update_time = timestamp::now_microseconds();
 
-        if( game_state.leaderboard.top_user.dig < user_state.dig ) {
-            if( *( &game_state.leaderboard.top_user.user_address ) == signer_addr ) {
-                game_state.leaderboard.top_user.dig = *(&user_state.dig);
-            }
-            else {
-                game_state.leaderboard.third_user.dig = *(&game_state.leaderboard.second_user.dig);
-                game_state.leaderboard.third_user.user_address = *(&game_state.leaderboard.second_user.user_address);
-
-                game_state.leaderboard.second_user.dig = *(&game_state.leaderboard.top_user.dig);
-                game_state.leaderboard.second_user.user_address = *(&game_state.leaderboard.top_user.user_address);
-
-                game_state.leaderboard.top_user.dig = *(&user_state.dig);
-                game_state.leaderboard.top_user.user_address = signer_addr;
-            };
-        }
-        else if ( game_state.leaderboard.second_user.dig < user_state.dig ) {
-            if ( *(&game_state.leaderboard.second_user.user_address) == signer_addr ) {
-                game_state.leaderboard.second_user.dig = *(&user_state.dig);
-            }
-            else {
-                game_state.leaderboard.third_user.dig = *(&game_state.leaderboard.second_user.dig);
-                game_state.leaderboard.third_user.user_address = *(&game_state.leaderboard.second_user.user_address);
-
-                game_state.leaderboard.second_user.dig = *(&user_state.dig);
-                game_state.leaderboard.second_user.user_address = signer_addr;
-            };
-        }
-        else if ( game_state.leaderboard.third_user.dig < user_state.dig ) {
-            game_state.leaderboard.third_user.dig = *(&user_state.dig);
-            game_state.leaderboard.third_user.user_address = signer_addr;
-        };
-
         // check holes count
         i = 0;
         while ( i < len ) {
