@@ -7,7 +7,14 @@ authors = []
 std = "0x1"
 aptos_std = "0x1"
 aptos_framework = "0x1"
-clicker="0x024752c782de672f5bf9640f66d3160a5fdc83df38f6afa2f8f1235dced8103a"
+aptos_token = "0x3"
+aptos_token_objects = "0x4"
+
+clicker="0x28d1bda7daee00e65870588be20d274bf917b7540787547ea7f5febae28933c5"
+
+admin="0x2e9a164a50b91d5e447bc53fe4fa4adc1217616a8f50fe2fcb69a1691f59a860"
+
+ExGuiToken="0x28d1bda7daee00e65870588be20d274bf917b7540787547ea7f5febae28933c5"
 
 [dev-addresses]
 
@@ -15,5 +22,15 @@ clicker="0x024752c782de672f5bf9640f66d3160a5fdc83df38f6afa2f8f1235dced8103a"
 git = "https://github.com/aptos-labs/aptos-core.git"
 rev = "mainnet"
 subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.AptosTokenObjects]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-token-objects"
+
+[dependencies.AptosToken]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-token"
 
 [dev-dependencies]
