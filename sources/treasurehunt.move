@@ -321,17 +321,33 @@ module clicker::treasurehunt {
         game_state.total_transation  = 0;
     }
 
-    public entry fun end_event( creator: &signer, end_time: u64 ) acquires GameState {
+    public entry fun end_event( creator: &signer ) acquires GameState {
         let creator_addr = signer::address_of(creator);
         assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
 
         let game_state = borrow_global_mut<GameState>(creator_addr);
-        let current_time = timestamp::now_seconds();
+        let end_time = timestamp::now_seconds();
 
         assert!(end_time > game_state.start_time, error::unavailable(TIME_SET_ERROR));
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
 
         game_state.status = EGAME_INACTIVE;
+        game_state.end_time = end_time;
+    }
+
+    public entry fun end_event_with_time( creator: &signer, year: u64, month: u64, day: u64, hours: u64, minutes: u64, seconds: u64 ) acquires GameState {
+        let creator_addr = signer::address_of(creator);
+        assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
+
+        let end_time = date_time_to_timestamp(year, month, day, hours, minutes, seconds);
+
+        let game_state = borrow_global_mut<GameState>(creator_addr);
+
+        assert!(end_time > game_state.start_time, error::unavailable(TIME_SET_ERROR));
+        assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
+
+        game_state.status = EGAME_INACTIVE;
+        game_state.end_time = end_time;
     }
 
     public entry fun pause_and_resume ( creator: &signer ) acquires GameState {
