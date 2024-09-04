@@ -178,7 +178,7 @@ module clicker::treasurehunt {
 
         total_days = total_days + day - 1;
 
-        let timestamp = total_days * 86400 + hour * 3600 + minute * 60 + second- 10800 ; // seconds in a day
+        let timestamp = total_days * 86400 + hour * 3600 + minute * 60 + second; // seconds in a day
         timestamp
     }
 
@@ -346,6 +346,18 @@ module clicker::treasurehunt {
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
 
         game_state.end_time = end_timestamp;
+    }
+
+    public entry fun set_game_status ( account: &signer ) acquires GameState {
+        let creator_addr = signer::address_of(account);
+
+        let game_state = borrow_global_mut<GameState>(creator_addr);
+
+        let now_timestamp = timestamp::now_seconds();
+
+        if ( game_state.start_time <= now_timestamp && game_state.end_time > now_timestamp ) {
+            game_state.status = EGAME_ACTIVE;
+        }
     }
 
     public entry fun pause_and_resume ( creator: &signer ) acquires GameState {
