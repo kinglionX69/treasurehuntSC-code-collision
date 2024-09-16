@@ -77,6 +77,14 @@ module clicker::treasurehunt {
     const INCORRECT_MINUTE_ARGUMENT: u64 = 24;
     /// Incorrect second argument
     const INCORRECT_SECOND_ARGUMENT: u64 = 25;
+    /// Incorrect second argument
+    const INCORRECT_ADDRESS_ARGUMENT: u64 = 26;
+    /// Incorrect second argument
+    const INCORRECT_COLLECTION_ARGUMENT: u64 = 27;
+    /// Incorrect second argument
+    const INCORRECT_TOKEN_ARGUMENT: u64 = 28;
+    /// Incorrect second argument
+    const INCORRECT_MULTIPLIER_ARGUMENT: u64 = 29;
 
     struct UserState has drop, store, copy {
         dig: u64,
@@ -115,6 +123,18 @@ module clicker::treasurehunt {
         total_transation: u256
     }
 
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    struct NFTBoosters has copy, store, key, drop {
+        multiplier_nft: vector<MultiNFT>,
+    }
+
+    struct MultiNFT has copy, store, key, drop{
+        multiplier: u64,
+        creator_address: address,
+        collection_name: String,
+        token_name: String
+    }
+
     struct GameStateWithTime has copy, key {
         game_state: GameState,
         now_time_second: u64,
@@ -135,6 +155,11 @@ module clicker::treasurehunt {
                 signer_cap: resource_signer_cap
             } )
         };
+        if ( !exists<NFTBoosters>( creator_addr ) ) {
+            move_to( deployer, NFTBoosters {
+                multiplier_nft: vector::empty()
+            } )
+        }
     }
 
     public fun is_leap_year(year: u64): bool {
@@ -589,7 +614,7 @@ module clicker::treasurehunt {
         }
     }
 
-    public entry fun reward_distribution ( creator: &signer ) acquires GameState {
+    public entry fun reward_distribution ( creator: &signer ) acquires GameState, NFTBoosters {
         let creator_addr = signer::address_of(creator);
 
         assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
@@ -611,29 +636,30 @@ module clicker::treasurehunt {
         let len: u64 = vector::length(&game_state.users_state);
         let total: u64 = 0;
 
-        // 2x
-        let creator_address_2x = @0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c;
-        let collection_name_2x = string::utf8(b"Martian Testnet82079");
-        let token_name_2x = string::utf8(b"Martian NFT #82079");
-        // 3x
-        let creator_address_3x = @0x5470e0f328736e9bd75321888a5478eb46801517e8e1644dcf05273752fbd33c;
-        let collection_name_3x = string::utf8(b"Martian Testnet86114");
-        let token_name_3x = string::utf8(b"Martian NFT #86114");
-
-        let token_data_id_2x: TokenId = token::create_token_id_raw(creator_address_2x, collection_name_2x, token_name_2x, 0);
-        let token_data_id_3x: TokenId = token::create_token_id_raw(creator_address_3x, collection_name_3x, token_name_3x, 0);
+        let nft_boosters = borrow_global_mut<NFTBoosters>(@clicker);
 
         let updated_users_dig = vector::empty();
+
+        let j = 0;
+        let nft_boosters_len = vector::length(&nft_boosters.multiplier_nft);
 
         while ( i < len ) {
             let user_state = vector::borrow(&game_state.users_state, i);
             let dig = user_state.dig;
 
-            if ( token::balance_of ( *vector::borrow(&game_state.users_list, i), token_data_id_3x ) > 0 ) {
-                dig = user_state.dig * 3;
-            }
-            else if ( token::balance_of ( *vector::borrow(&game_state.users_list, i), token_data_id_2x ) > 0 ) {
-                dig = user_state.dig * 2;
+            j = 0;
+            while ( j < nft_boosters_len ) {
+                // token id
+                let token_id: TokenId = token::create_token_id_raw(vector::borrow(&nft_boosters.multiplier_nft, j).creator_address, vector::borrow(&nft_boosters.multiplier_nft, j).collection_name, vector::borrow(&nft_boosters.multiplier_nft, j).token_name, 0);
+
+                if ( token::balance_of ( *vector::borrow(&game_state.users_list, i), token_id ) > 0 ) {
+                    let multi_dig = user_state.dig * (vector::borrow(&nft_boosters.multiplier_nft, j).multiplier) / 10;
+                    if(multi_dig > dig) {
+                        dig = multi_dig;
+                    }
+                };
+
+                j = j + 1;
             };
 
             total = total + dig;
@@ -655,6 +681,54 @@ module clicker::treasurehunt {
 
         game_state.total_transation = game_state.total_transation + 1;
         game_state.daily_pool = 0;
+    }
+
+    public entry fun set_nft_booster ( creator: &signer, multiplier: u64, creator_address: address, collection_name: String, token_name: String ) acquires NFTBoosters {
+        let creator_addr = signer::address_of(creator);
+
+        assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
+        assert!(multiplier > 1, error::unavailable(INCORRECT_MULTIPLIER_ARGUMENT));
+        assert!(collection_name != string::utf8(b""), error::unavailable(INCORRECT_COLLECTION_ARGUMENT));
+        assert!(token_name != string::utf8(b""), error::unavailable(INCORRECT_TOKEN_ARGUMENT));
+
+        let nft_boosters = borrow_global_mut<NFTBoosters>(@clicker);
+
+        vector::push_back(&mut nft_boosters.multiplier_nft, MultiNFT{
+            multiplier: multiplier,
+            creator_address: creator_address,
+            collection_name: collection_name,
+            token_name: token_name
+        });
+    }
+
+    public entry fun remove_nft_booster ( creator: &signer, creator_address: address, collection_name: String, token_name: String ) acquires NFTBoosters {
+        let creator_addr = signer::address_of(creator);
+
+        assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
+        assert!(collection_name != string::utf8(b""), error::unavailable(INCORRECT_COLLECTION_ARGUMENT));
+        assert!(token_name != string::utf8(b""), error::unavailable(INCORRECT_TOKEN_ARGUMENT));
+
+        let nft_boosters = borrow_global_mut<NFTBoosters>(@clicker);
+
+        let i: u64 = 0;
+        let len: u64 = vector::length(&nft_boosters.multiplier_nft);
+
+        while(i < len) {
+            let nft_booster = vector::borrow_mut(&mut nft_boosters.multiplier_nft, i);
+            if( nft_booster.creator_address == creator_address && nft_booster.collection_name == collection_name && nft_booster.token_name == token_name ) {
+                vector::remove(&mut nft_boosters.multiplier_nft, i);
+                break
+            };
+
+            i = i + 1;
+        };
+    }
+
+    #[view]
+    public fun get_nft_boosters (): NFTBoosters acquires NFTBoosters {
+        let nft_boosters = borrow_global<NFTBoosters>(@clicker);
+
+        *nft_boosters
     }
 
     #[view]
