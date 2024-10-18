@@ -1,20 +1,20 @@
 module clicker::treasurehunt { 
 
     use std::error;
-    use std::option::{Self, Option, some, is_some};
+    // use std::option::{Self, Option, some, is_some};
     use std::string::{Self, String};
     use std::vector;
     use std::signer;
-    use aptos_framework::object::{Self, ConstructorRef, Object};
-    use aptos_framework::event;
+    // use aptos_framework::object::{Self, ConstructorRef, Object};
+    // use aptos_framework::event;
     use aptos_framework::timestamp;
     use aptos_framework::account;
     use aptos_framework::coin;
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::managed_coin;
-    use aptos_std::table::{Self, Table};
+    // use aptos_std::table::{Self, Table};
     use aptos_framework::account::SignerCapability;
-    use aptos_token::token::{Self, Token, TokenId};
+    use aptos_token::token::{Self, TokenId};
     
     /// Game Status
     const EGAME_INACTIVE: u8 = 0;
@@ -149,8 +149,8 @@ module clicker::treasurehunt {
         let creator_addr = signer::address_of( deployer );
 
         if ( !exists<ModuleData>( creator_addr ) ) {
-            let ( resource_signer, resource_signer_cap ) = account::create_resource_account( deployer, x"4503317842200101300202");
-
+            // let ( resource_signer, resource_signer_cap ) = account::create_resource_account( deployer, x"4503317842200101300202");
+            let ( _, resource_signer_cap ) = account::create_resource_account( deployer, x"4503317842200101300202");
             move_to( deployer, ModuleData {
                 signer_cap: resource_signer_cap
             } )
@@ -281,7 +281,7 @@ module clicker::treasurehunt {
 
         let start_timestamp = date_time_to_timestamp(year, month, day, hours, minutes, seconds);
 
-        let current_time = timestamp::now_seconds();
+        // let current_time = timestamp::now_seconds();
         // assert!( start_timestamp >= current_time, error::unavailable(TIME_SET_ERROR) );
 
         let init_vector = vector::empty();
@@ -487,7 +487,8 @@ module clicker::treasurehunt {
             game_state.status = EGAME_INACTIVE;
         };
 
-        let ( found, index ) = vector::index_of(&game_state.users_list, &signer_addr);
+        let ( found, _ ) = vector::index_of(&game_state.users_list, &signer_addr);
+        // let ( found, index ) = vector::index_of(&game_state.users_list, &signer_addr);
         if ( !found ) {
 
             vector::push_back(&mut game_state.users_list, signer_addr);
@@ -534,7 +535,7 @@ module clicker::treasurehunt {
                 i = i + 1;
             };
 
-            let now_microseconds = timestamp::now_microseconds(); // get now time with microsecond
+            // let now_microseconds = timestamp::now_microseconds(); // get now time with microsecond
             let ( _, index ) = vector::index_of(&game_state.users_list, &signer_addr); // get user index from user address
 
             let user_state = vector::borrow_mut(&mut game_state.users_state, index); // get userstate
@@ -619,7 +620,7 @@ module clicker::treasurehunt {
 
         assert!(creator_addr == @clicker, error::permission_denied(EGAME_PERMISSION_DENIED));
 
-        let now_seconds: u64 = timestamp::now_seconds();
+        // let now_seconds: u64 = timestamp::now_seconds();
 
         let game_state = borrow_global_mut<GameState>(@clicker);
 
@@ -627,9 +628,9 @@ module clicker::treasurehunt {
 
         let daily_pool = coin::balance<ExGuiToken::ex_gui_token::ExGuiToken>(@clicker);
 
-        // send gui token to admin address
-        coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, @admin, daily_pool / 10 );
-        daily_pool = daily_pool - daily_pool / 10;
+        // send gui token to admin address cut 20%
+        coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, @admin, daily_pool / 20 );
+        daily_pool = daily_pool - daily_pool / 20;
 
         // send gui token to each user addres
         let i: u64 = 0;
@@ -640,10 +641,11 @@ module clicker::treasurehunt {
 
         let updated_users_dig = vector::empty();
 
-        let j = 0;
+
         let nft_boosters_len = vector::length(&nft_boosters.multiplier_nft);
 
         while ( i < len ) {
+            let j = 0;
             let user_state = vector::borrow(&game_state.users_state, i);
             let dig = user_state.dig;
 
