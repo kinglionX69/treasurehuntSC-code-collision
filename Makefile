@@ -1,12 +1,27 @@
 compile:
-	aptos move compile --skip-fetch-latest-git-deps --included-artifacts=none
+	aptos move compile \
+	--skip-fetch-latest-git-deps \
+	--included-artifacts none
 publish-clicker:
-	aptos move publish --skip-fetch-latest-git-deps --included-artifacts=none --named-addresses module_name=0xfad5a4731cc1185de6f779520b8281aecf7ab5a178dbccee41b703d1a6c82c21 --profile=clicker
+	aptos move publish \
+	--skip-fetch-latest-git-deps \
+	--included-artifacts none \
+ 	--named-addresses clicker=clicker \
+ 	--profile=clicker
 publish-ExGuiToken:
-	aptos move publish --skip-fetch-latest-git-deps  --included-artifacts=none --named-addresses module_name=0xfad5a4731cc1185de6f779520b8281aecf7ab5a178dbccee41b703d1a6c82c21 --profile=clicker
+	aptos move publish \
+	--skip-fetch-latest-git-deps \
+	--included-artifacts none \
+	--named-addresses ExGuiToken=clicker \
+	--profile=clicker
 fund-gui:
-	aptos move run-script --skip-fetch-latest-git-deps --compiled-script-path build/treasurehunt/bytecode_scripts/main.mv --profile=clicker
+	aptos move run-script \
+	--skip-fetch-latest-git-deps \
+	--compiled-script-path build/treasurehunt/bytecode_scripts/main.mv \
+	--profile=clicker
 fund:
 	aptos account fund-with-faucet --profile $(name)
+profile:
+	aptos init --profile $(name) --network $(network)
 
-.PHONY: compile publish
+.PHONY: compile publish fund fund-gui publish-clicker publish-ExGuiToken
