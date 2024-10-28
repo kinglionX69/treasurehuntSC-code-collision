@@ -629,8 +629,8 @@ module clicker::treasurehunt {
         let daily_pool = coin::balance<ExGuiToken::ex_gui_token::ExGuiToken>(@clicker);
 
         // send gui token to admin address cut 20%
-        coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, @admin, daily_pool / 20 );
-        daily_pool = daily_pool - daily_pool / 20;
+        coin::transfer<ExGuiToken::ex_gui_token::ExGuiToken>( creator, @admin, daily_pool / 5 );
+        daily_pool = daily_pool - daily_pool / 5;
 
         // send gui token to each user addres
         let i: u64 = 0;
