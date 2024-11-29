@@ -323,6 +323,7 @@ module clicker::treasurehunt {
 
         assert!(game_state.status == EGAME_INACTIVE, error::unavailable(EGAME_IS_ACTIVE_NOW));
 
+        game_state.status = EGAME_ACTIVE;
         game_state.start_time = start_timestamp;
         game_state.end_time = 18_446_744_073_709_551_615;
         game_state.grid_state = init_vector;
@@ -370,7 +371,7 @@ module clicker::treasurehunt {
 
         // assert!(end_timestamp > game_state.start_time, error::unavailable(TIME_SET_ERROR));
         assert!(game_state.status == EGAME_ACTIVE, error::unavailable(EGAME_IS_INACTIVE_NOW));
-
+        game_state.status = EGAME_INACTIVE;
         game_state.end_time = end_timestamp;
     }
 
